@@ -3,7 +3,7 @@ import { ContactForm } from "@/components/site/contact-form";
 import { Icon } from "@/components/ui/icons";
 import { Reveal } from "@/components/ui/reveal";
 import { getSettings } from "@/lib/data";
-import { splitHeadline } from "@/lib/utils";
+import { pageText } from "@/lib/page-content";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -14,7 +14,6 @@ export const dynamic = "force-dynamic";
 
 export default async function ContactPage() {
   const settings = await getSettings();
-  const headline = splitHeadline(settings.contactHeadline, "Let\u2019s get your brand", "ready.");
 
   return (
     <div className="relative overflow-hidden">
@@ -27,14 +26,10 @@ export default async function ContactPage() {
             <div className="flex h-full flex-col rounded-[36px] border border-white/10 bg-gradient-to-b from-[#141416] to-[#09090a] p-8 md:p-10">
               <p className="micro text-white/40">Start a project</p>
               <h1 className="mt-6 text-[clamp(2.2rem,4.8vw,3.75rem)] font-semibold leading-[0.97] tracking-[-0.045em] text-white">
-                Let&apos;s get your brand{" "}
-                <span className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
-                  production-ready.
-                </span>
+                {pageText(settings, "contactTitle")}
               </h1>
               <p className="mt-6 text-[16px] leading-relaxed text-white/55">
-                Share the brief, the channels and the deadline. I read every message myself and reply
-                with questions, a plan, or an honest &ldquo;that&apos;s not a fit.&rdquo;
+                {pageText(settings, "contactIntro")}
               </p>
 
               <div className="mt-10 space-y-7">
@@ -62,27 +57,6 @@ export default async function ContactPage() {
                     </a>
                   </div>
                 ) : null}
-              </div>
-
-              <div className="mt-auto">
-                <p className="micro text-[9px] text-white/35">Status</p>
-                <div className="mt-3 flex flex-col gap-2.5">
-                  <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
-                    <span className="relative flex h-2.5 w-2.5 shrink-0">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-acid opacity-75" />
-                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-acid" />
-                    </span>
-                    <p className="text-sm text-white/75">{settings.availability}</p>
-                  </div>
-                  {settings.relocation ? (
-                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
-                      <span className="flex h-2.5 w-2.5 shrink-0 items-center justify-center">
-                        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-azure" />
-                      </span>
-                      <p className="text-sm text-white/75">{settings.relocation}</p>
-                    </div>
-                  ) : null}
-                </div>
               </div>
             </div>
           </Reveal>

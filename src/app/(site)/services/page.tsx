@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Icon, type IconName } from "@/components/ui/icons";
 import { Reveal } from "@/components/ui/reveal";
 import { getServices, getSettings } from "@/lib/data";
-import { splitHeadline } from "@/lib/utils";
+import { pageText } from "@/lib/page-content";
 
 export const metadata: Metadata = {
   title: "What I Produce",
@@ -27,7 +27,6 @@ type ProcessStep = { title: string; body: string };
 export default async function ServicesPage() {
   const [services, settings] = await Promise.all([getServices(), getSettings()]);
 
-  const headline = splitHeadline(settings.servicesHeadline, "Built to spec.", "Delivered clean.");
   let process: ProcessStep[] = [];
   try {
     process = JSON.parse(settings.process ?? "[]") as ProcessStep[];
@@ -42,16 +41,12 @@ export default async function ServicesPage() {
         <div className="pointer-events-none absolute -right-20 bottom-0 h-72 w-72 rounded-full bg-azure/20 blur-[120px] animate-aurora-2" />
         <div className="relative shell">
           <Reveal>
-            <p className="micro text-white/40">What I produce</p>
+            <p className="micro text-white/40">{pageText(settings, "servicesEyebrow")}</p>
             <h1 className="mt-6 max-w-4xl text-[clamp(2.8rem,8vw,6.5rem)] font-semibold leading-[0.95] tracking-[-0.05em] text-white">
-              {headline.plain}{" "}
-              <span className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
-                {headline.highlight}
-              </span>
+              {pageText(settings, "servicesTitle")}
             </h1>
             <p className="mt-7 max-w-xl text-[17px] leading-relaxed text-white/55">
-              Six disciplines, one standard: creative analysed for brand impact, then every file structured, colour-managed and
-              preflighted so the first press run is the right one.
+              {pageText(settings, "servicesIntro")}
             </p>
           </Reveal>
         </div>

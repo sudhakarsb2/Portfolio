@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/kit";
 import { Icon } from "@/components/ui/icons";
 
@@ -21,12 +22,12 @@ export default function SiteError({
       </p>
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         <Button onClick={reset}>Try again</Button>
-        <a
+        <Link
           href="/"
           className="inline-flex h-11 items-center gap-2 rounded-full border border-line px-5 text-[13px] font-medium text-ink transition-colors hover:border-ink"
         >
           Back to the portfolio
-        </a>
+        </Link>
       </div>
     </div>
   );

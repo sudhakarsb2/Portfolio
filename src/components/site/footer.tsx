@@ -1,19 +1,10 @@
 import Link from "next/link";
 import { Logo } from "@/components/site/logo";
 import { Icon } from "@/components/ui/icons";
-import { splitHeadline } from "@/lib/utils";
 
-export function SiteFooter({
-  settings,
-  compact = false,
-}: {
-  settings: Record<string, string>;
-  /** Hides the big CTA block — used on pages that already ask for contact. */
-  compact?: boolean;
-}) {
+export function SiteFooter({ settings }: { settings: Record<string, string> }) {
   const email = settings.email ?? "";
   const linkedin = settings.linkedin ?? "";
-  const headline = splitHeadline(settings.footerHeadline, "Got a rollout", "to ship?");
   const ticker = ["Digital", "Out of Home", "Point of Sale", "Packaging", "Brand Rollouts", "Production"];
 
   return (
@@ -21,49 +12,40 @@ export function SiteFooter({
       <div className="pointer-events-none absolute -left-24 top-0 h-80 w-80 rounded-full bg-violet/25 blur-[110px] animate-aurora" />
       <div className="pointer-events-none absolute -right-20 bottom-10 h-80 w-80 rounded-full bg-vermilion/20 blur-[110px] animate-aurora-2" />
 
-      <div className={compact ? "relative shell py-14 md:py-16" : "relative shell py-20 md:py-28"}>
-        {!compact ? (
-          <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="micro text-white/45">
-                <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-acid" />
-                {settings.availability ?? "Open to projects"}
-              </p>
-              <h2 className="mt-6 max-w-3xl text-[clamp(2.6rem,7vw,5.5rem)] font-semibold leading-[0.95] tracking-[-0.045em]">
-                {headline.plain}
-                <br />
-                <span className="animate-gradient bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
-                  {headline.highlight}
-                </span>
-              </h2>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              {email ? (
-                <a
-                  href={`mailto:${email}`}
-                  className="group inline-flex h-14 items-center gap-3 rounded-full bg-white px-7 text-sm font-semibold text-black transition-all hover:bg-vermilion hover:text-white"
-                >
-                  {email}
-                  <Icon name="arrow-up-right" className="h-4 w-4 transition-transform group-hover:rotate-45" />
-                </a>
-              ) : null}
-              {linkedin ? (
-                <a
-                  href={linkedin}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex h-14 items-center gap-3 rounded-full border border-white/25 px-7 text-sm font-semibold text-white transition-all hover:border-white hover:bg-white/10"
-                >
-                  <Icon name="linkedin" className="h-4.5 w-4.5" />
-                  LinkedIn
-                </a>
-              ) : null}
-            </div>
+      <div className="relative shell py-20 md:py-28">
+        <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="micro text-white/45">
+              <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-acid" />
+              {settings.availability ?? "Open to projects"}
+            </p>
           </div>
-        ) : null}
 
-        <div className={compact ? "overflow-hidden border-y border-white/10 py-5" : "mt-16 overflow-hidden border-y border-white/10 py-5"}>
+          <div className="flex flex-wrap gap-3">
+            {email ? (
+              <a
+                href={`mailto:${email}`}
+                className="group inline-flex h-14 items-center gap-3 rounded-full bg-white px-7 text-sm font-semibold text-black transition-all hover:bg-vermilion hover:text-white"
+              >
+                {email}
+                <Icon name="arrow-up-right" className="h-4 w-4 transition-transform group-hover:rotate-45" />
+              </a>
+            ) : null}
+            {linkedin ? (
+              <a
+                href={linkedin}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-14 items-center gap-3 rounded-full border border-white/25 px-7 text-sm font-semibold text-white transition-all hover:border-white hover:bg-white/10"
+              >
+                <Icon name="linkedin" className="h-4.5 w-4.5" />
+                LinkedIn
+              </a>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-16 overflow-hidden border-y border-white/10 py-5">
           <div className="flex w-max animate-marquee items-center gap-10">
             {[0, 1].map((copy) => (
               <div key={copy} className="flex shrink-0 items-center gap-10">
@@ -80,7 +62,7 @@ export function SiteFooter({
           </div>
         </div>
 
-        <div className="mt-14 grid gap-12 md:grid-cols-2">
+        <div className="mt-14 grid gap-12 md:grid-cols-3">
           <div>
             <p className="micro text-white/35">Explore</p>
             <ul className="mt-5 space-y-3 text-sm text-white/70">
@@ -101,21 +83,26 @@ export function SiteFooter({
           </div>
           <div>
             <p className="micro text-white/35">Status</p>
-            <div className="mt-5 flex flex-col items-start gap-2.5">
-              <div className="inline-flex items-center gap-2.5 rounded-full border border-white/15 px-4 py-2.5">
+            <div className="mt-5 flex flex-wrap gap-2.5">
+              <span className="inline-flex items-center gap-2.5 rounded-full border border-white/15 px-4 py-2.5">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-acid opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-acid" />
                 </span>
                 <span className="text-sm text-white/85">Available for projects</span>
-              </div>
+              </span>
               {settings.relocation ? (
-                <div className="inline-flex items-center gap-2.5 rounded-full border border-white/15 px-4 py-2.5">
-                  <span className="inline-flex h-2 w-2 rounded-full bg-azure" />
+                <span className="inline-flex items-center gap-2.5 rounded-full border border-white/15 px-4 py-2.5">
+                  <span className="flex h-2 w-2 shrink-0 items-center justify-center rounded-full bg-acid">
+                    <Icon name="check" className="h-1.5 w-1.5 text-black" strokeWidth={4} />
+                  </span>
                   <span className="text-sm text-white/85">{settings.relocation}</span>
-                </div>
+                </span>
               ) : null}
             </div>
+            {settings.responseTime ? (
+              <p className="mt-3 text-sm text-white/60">{settings.responseTime}</p>
+            ) : null}
           </div>
         </div>
 

@@ -4,13 +4,13 @@ import { useRef, type PointerEvent } from "react";
 import { ProfilePhoto } from "@/components/site/profile-photo";
 
 const chips = [
-  { text: "Pantone matched", className: "-left-4 top-[14%] sm:-left-10", delay: "0s" },
-  { text: "3 mm bleed set", className: "-right-3 top-[34%] sm:-right-9", delay: "1.2s" },
-  { text: "Preflight passed", className: "-left-3 bottom-[22%] sm:-left-12", delay: "2.1s" },
-  { text: "CMYK · print-ready", className: "-right-2 bottom-[8%] sm:-right-8", delay: "0.6s" },
+  { text: "Graphic Design", className: "-left-4 top-[14%] sm:-left-10", delay: "0s" },
+  { text: "Advertising", className: "-right-3 top-[34%] sm:-right-9", delay: "1.2s" },
+  { text: "Print and Production", className: "-left-3 bottom-[22%] sm:-left-12", delay: "2.1s" },
+  { text: "Digital rollouts", className: "-right-2 bottom-[8%] sm:-right-8", delay: "0.6s" },
 ];
 
-/** Tilting profile card with floating "production checks" that tie to the craft. */
+/** Tilting profile card with floating discipline badges around the portrait. */
 export function HeroPortrait({
   src,
   name,

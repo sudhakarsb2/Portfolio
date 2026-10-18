@@ -4,7 +4,7 @@ import { HeroPortrait } from "@/components/site/hero-portrait";
 import { Icon } from "@/components/ui/icons";
 import { Counter, Reveal } from "@/components/ui/reveal";
 import { getExperiences, getSettings, getTestimonials } from "@/lib/data";
-import { parseSkillGroups, splitHeadline } from "@/lib/utils";
+import { pageText } from "@/lib/page-content";
 
 export const metadata: Metadata = {
   title: "About",
@@ -16,14 +16,44 @@ export const dynamic = "force-dynamic";
 
 type Education = { school: string; program: string; period: string };
 
-const tools = [
+const list = (value?: string) =>
+  (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+/**
+ * Daily tools. The list lives in site settings so it can be edited from the
+ * dashboard. Each entry is `Code | Name | Hex colour`.
+ */
+const DEFAULT_TOOLS = [
   { code: "Id", name: "InDesign", color: "#ff3d7f" },
   { code: "Ps", name: "Photoshop", color: "#31a8ff" },
   { code: "Ai", name: "Illustrator", color: "#ff9a00" },
-  { code: "Pdf", name: "Acrobat Professional", color: "#fa0f00" },
-  { code: "Ms", name: "Microsoft Office", color: "#d83b01" },
-  { code: "Cc", name: "Adobe Creative Cloud", color: "#da1f26" },
+  { code: "Ac", name: "Acrobat Pro", color: "#ec1c24" },
+  { code: "Of", name: "Microsoft Office", color: "#d83b01" },
+  { code: "Cc", name: "Adobe Creative Cloud", color: "#ff0000" },
 ];
+
+const SWATCHES = ["#ff3d7f", "#31a8ff", "#ff9a00", "#ec1c24", "#d83b01", "#7a5cff", "#00d4a0", "#d7f24b", "#e0a100", "#f5f5f7"];
+
+function parseTools(value: string | undefined) {
+  const entries = (value ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const [code, name, color] = line.split("|").map((part) => part.trim());
+      if (!name) return null;
+      return {
+        code: (code || name.slice(0, 2)).toUpperCase(),
+        name,
+        color: color || SWATCHES[index % SWATCHES.length],
+      };
+    })
+    .filter((entry): entry is { code: string; name: string; color: string } => entry !== null);
+  return entries.length ? entries : DEFAULT_TOOLS;
+}
 
 export default async function AboutPage() {
   const [experiences, settings, testimonials] = await Promise.all([
@@ -34,9 +64,48 @@ export default async function AboutPage() {
 
   const name = settings.designerName ?? "Sudhakar Bhambade";
   const role = settings.roleTitle ?? "Graphic Designer / Identity & Production Specialist";
-  const headline = splitHeadline(settings.aboutHeadline, "The person who makes sure it", "prints right.");
   const paragraphs = (settings.about ?? "").split("\n\n").filter(Boolean);
-  const skillGroups = parseSkillGroups(settings.skills);
+  const tools = parseTools(settings.dailyTools);
+
+/** Skills are grouped for a tidy grid on every screen size. Anything unknown
+ *  still appears, under "Other", so dashboard edits are never lost. */
+const SKILL_GROUPS: Array<{ heading: string; match: string[] }> = [
+  {
+    heading: "Creative",
+    match: ["visual identity", "creative analysis", "information design", "composition"],
+  },
+  {
+    heading: "Print & production",
+    match: ["production schedules", "press-ready", "pre-flight", "cmyk", "die-line", "print"],
+  },
+  {
+    heading: "Brand",
+    match: ["brand guardian", "file naming", "version control"],
+  },
+  {
+    heading: "Adaptation",
+    match: ["arabic", "bilingual", "illustrator & indesign", "masters"],
+  },
+];
+
+function buildSkillGroups(skills: string[]) {
+  const used = new Set<string>();
+  const groups = SKILL_GROUPS.map((group) => {
+    const items = skills.filter((skill) => {
+      const lower = skill.toLowerCase();
+      const hit = !used.has(skill) && group.match.some((needle) => lower.includes(needle));
+      if (hit) used.add(skill);
+      return hit;
+    });
+    return { heading: group.heading, items };
+  }).filter((group) => group.items.length > 0);
+
+  const rest = skills.filter((skill) => !used.has(skill));
+  if (rest.length) groups.push({ heading: "Other", items: rest });
+  return groups;
+}
+  const skills = list(settings.skills);
+  const skillGroups = buildSkillGroups(skills);
 
   let education: Education[] = [];
   try {
@@ -60,12 +129,9 @@ export default async function AboutPage() {
         <div className="relative shell grid items-center gap-20 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <Reveal>
-              <p className="micro text-white/40">About</p>
+              <p className="micro text-white/40">{pageText(settings, "aboutEyebrow")}</p>
               <h1 className="mt-6 text-[clamp(2.8rem,7.5vw,5.75rem)] font-semibold leading-[0.95] tracking-[-0.05em] text-white">
-                The person who makes sure it{" "}
-                <span className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
-                  looks right — and prints right.
-                </span>
+                {pageText(settings, "aboutTitle")}
               </h1>
             </Reveal>
             <Reveal delay={100}>
@@ -118,23 +184,24 @@ export default async function AboutPage() {
           </section>
         </Reveal>
 
-        <section className="mt-24 grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <section className="mt-24 space-y-6">
           <Reveal>
-            <div className="h-full rounded-[32px] border border-white/10 bg-[#0d0d0f] p-8 md:p-10">
+            <div className="rounded-[32px] border border-white/10 bg-[#0d0d0f] p-8 md:p-10">
               <p className="micro text-white/40">Skills</p>
-              <div className="mt-6 space-y-7">
-                {skillGroups.map((group, groupIndex) => (
-                  <div key={group.title || groupIndex}>
-                    {group.title ? (
-                      <p className="micro mb-3 border-b border-white/10 pb-2.5 text-[9px] text-vermilion">
-                        {group.title}
-                      </p>
-                    ) : null}
-                    <ul className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
+              <div className="mt-7 grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
+                {skillGroups.map((group) => (
+                  <div key={group.heading}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                      {group.heading}
+                    </p>
+                    <ul className="mt-3.5 space-y-2">
                       {group.items.map((skill) => (
-                        <li key={skill} className="flex items-start gap-2.5 text-[13px] leading-snug text-white/75">
+                        <li
+                          key={skill}
+                          className="flex items-start gap-2.5 border-b border-white/[0.06] pb-2 text-[13px] leading-snug text-white/75"
+                        >
                           <span
-                            className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-white/30"
+                            className="mt-[0.4rem] h-1.5 w-1.5 shrink-0 rounded-full bg-vermilion"
                             aria-hidden="true"
                           />
                           {skill}
@@ -149,7 +216,7 @@ export default async function AboutPage() {
           <Reveal delay={100}>
             <div className="h-full rounded-[32px] border border-white/10 bg-[#0d0d0f] p-8 md:p-10">
               <p className="micro text-white/40">Daily tools</p>
-              <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="mt-6 grid grid-cols-2 gap-4">
                 {tools.map((tool) => (
                   <div
                     key={tool.name}

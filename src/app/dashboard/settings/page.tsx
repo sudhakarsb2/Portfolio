@@ -2,6 +2,9 @@ import { ProfilePhotoCard } from "@/components/dashboard/profile-photo-card";
 import { SettingsForm } from "@/components/dashboard/settings-form";
 import { getCurrentUser } from "@/lib/auth";
 import { getSettings } from "@/lib/data";
+import { pageFields } from "@/lib/page-content";
+import { SiteCustomizer } from "@/components/dashboard/site-customizer";
+import { color } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -13,22 +16,20 @@ const siteFieldLabels: Record<string, { label: string; multiline?: boolean; grou
   heroWords: { label: "Homepage rotating words (comma separated)", multiline: true, group: "Identity" },
   about: { label: "About text (blank line = new paragraph)", multiline: true, group: "Identity" },
   clients: { label: "Brands produced for (comma separated)", multiline: true, group: "Credibility" },
-  skills: { label: "Skills — group with \"Title: a, b | Title: c\" or just commas", multiline: true, group: "Credibility" },
+  skills: { label: "Skills (comma separated)", multiline: true, group: "Credibility" },
+  dailyTools: {
+    label: "Daily tools — one per line: Code | Name | Colour",
+    multiline: true,
+    group: "Credibility",
+  },
   email: { label: "Contact email", group: "Contact" },
-  location: { label: "Location", group: "Contact" },
   availability: { label: "Availability badge", group: "Contact" },
-  relocation: { label: "Relocation badge (empty hides it)", group: "Contact" },
+  relocation: {
+    label: "Relocation note (leave blank to hide that pill)",
+    group: "Contact",
+  },
   responseTime: { label: "Response time note", group: "Contact" },
   linkedin: { label: "LinkedIn URL", group: "Contact" },
-  holdLabel: { label: "Hero button text", group: "Pages" },
-  holdLabelArchive: { label: "Locked-archive button text", group: "Pages" },
-  workHeadline: { label: "Work page headline (| before the coloured part)", group: "Pages" },
-  workIntro: { label: "Work page intro", multiline: true, group: "Pages" },
-  servicesHeadline: { label: "Services page headline (| before the coloured part)", group: "Pages" },
-  servicesIntro: { label: "Services page intro", multiline: true, group: "Pages" },
-  aboutHeadline: { label: "About page headline (| before the coloured part)", group: "Pages" },
-  contactHeadline: { label: "Contact page headline (| before the coloured part)", group: "Pages" },
-  footerHeadline: { label: "Footer headline (| before the coloured part)", group: "Pages" },
   yearsExperience: { label: "Stat — years in design & production", group: "Stats" },
   agencyYears: { label: "Stat — years at current agency", group: "Stats" },
   brandsCount: { label: "Stat — global brands", group: "Stats" },
@@ -38,13 +39,16 @@ const siteFieldLabels: Record<string, { label: string; multiline?: boolean; grou
 export default async function DashboardSettingsPage() {
   const [user, settings] = await Promise.all([getCurrentUser(), getSettings()]);
 
-  const siteFields = Object.entries(siteFieldLabels).map(([key, meta]) => ({
-    key,
-    label: meta.label,
-    value: settings[key] ?? "",
-    multiline: meta.multiline,
-    group: meta.group,
-  }));
+  const pageKeys = new Set(pageFields.map((field) => field.key));
+  const siteFields = Object.entries(siteFieldLabels)
+    .filter(([key]) => !pageKeys.has(key))
+    .map(([key, meta]) => ({
+      key,
+      label: meta.label,
+      value: settings[key] ?? "",
+      multiline: meta.multiline,
+      group: meta.group,
+    }));
 
   return (
     <div className="space-y-6">
@@ -58,6 +62,16 @@ export default async function DashboardSettingsPage() {
       <ProfilePhotoCard
         initialUrl={settings.profilePhoto || "/images/profile.jpg"}
         name={settings.designerName ?? user?.name ?? "Portfolio"}
+      />
+
+      <SiteCustomizer
+        initialUrl={settings.siteUrl ?? ""}
+        initialColors={{
+          colorVermilion: color(settings.colorVermilion, "#ff4a1c"),
+          colorViolet: color(settings.colorViolet, "#7a5cff"),
+          colorAzure: color(settings.colorAzure, "#3ba9ff"),
+          colorAcid: color(settings.colorAcid, "#d7f24b"),
+        }}
       />
 
       <SettingsForm

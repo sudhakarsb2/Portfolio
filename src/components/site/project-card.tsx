@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRef, type MouseEvent } from "react";
 import { Artwork } from "@/components/artwork";
+import { MediaThumb } from "@/components/site/media-thumb";
 import { Icon } from "@/components/ui/icons";
-import { cn, displayImage } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export type ProjectCardData = {
   id: number;
@@ -70,11 +71,10 @@ export function ProjectCard({
         style={{ transform: "rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))" }}
       >
         {project.coverImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={displayImage(project.coverImage)}
+          <MediaThumb
+            url={project.coverImage}
             alt={`${project.title} cover`}
-            className="h-full w-full object-cover transition-transform duration-[900ms] ease-out group-hover:scale-110"
+            imageClassName="transition-transform duration-[900ms] ease-out group-hover:scale-110"
           />
         ) : (
           <Artwork

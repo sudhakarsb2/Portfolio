@@ -5,8 +5,9 @@ import { useMemo, useState } from "react";
 import { Artwork } from "@/components/artwork";
 import { Button, Field, Input, Select, Switch, Textarea, useToast } from "@/components/ui/kit";
 import { Icon } from "@/components/ui/icons";
+import { parseYouTube } from "@/lib/youtube";
 import { ImageUploader } from "@/components/ui/image-uploader";
-import { cn, displayImage, mediaKind, slugify } from "@/lib/utils";
+import { cn, slugify } from "@/lib/utils";
 
 export type ProjectFormValues = {
   id?: number;
@@ -215,18 +216,35 @@ export function ProjectForm({
           <h2 className="font-display text-xl text-ink">Imagery &amp; credits</h2>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Field
-              label="Cover image URL"
+              label="Cover — image URL or YouTube link"
               className="sm:col-span-2"
-              hint="Leave empty for generated poster art. A YouTube link works too — its thumbnail becomes the cover."
+              hint="Paste a YouTube link to use its thumbnail as the cover. Leave empty for generated artwork."
             >
               <Input
                 value={values.coverImage}
                 onChange={(event) => set("coverImage", event.target.value)}
-                placeholder="https://…/cover.jpg"
+                placeholder="https://youtube.com/watch?v=… or https://…/cover.jpg"
               />
             </Field>
+            {(() => {
+              const video = parseYouTube(values.coverImage);
+              const preview = video ? video.thumb : values.coverImage;
+              if (!preview) return null;
+              return (
+                <div className="sm:col-span-2">
+                  <p className="micro mb-2 text-[9px] text-ink/45">
+                    {video ? "YouTube thumbnail preview — plays on the site" : "Cover preview"}
+                  </p>
+                  <div className="h-32 w-56 overflow-hidden rounded-xl border border-line bg-bone/50">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={preview} alt="Cover preview" className="h-full w-full object-cover" />
+                  </div>
+                </div>
+              );
+            })()}
             <div className="-mt-2 flex flex-wrap items-center gap-3 sm:col-span-2">
               <ImageUploader
+                anyFile
                 label="Upload cover image"
                 onUploaded={(url) => {
                   set("coverImage", url);
@@ -243,7 +261,10 @@ export function ProjectForm({
                 </button>
               ) : null}
             </div>
-            <Field label="Gallery images" hint="Images, PDFs, videos — or paste YouTube links (saves storage; the thumbnail and player come from YouTube).">
+            <Field
+              label="Gallery — images, video, PDF, vector"
+              hint="Upload files or paste URLs. One per line."
+            >
               <Textarea
                 rows={5}
                 value={values.gallery.join("\n")}
@@ -256,43 +277,48 @@ export function ProjectForm({
                       .filter(Boolean),
                   )
                 }
-                placeholder={"https://…/01.jpg\nhttps://…/02.jpg"}
+                placeholder={"https://…/01.jpg\nhttps://…/02.pdf\nhttps://…/03.mp4"}
               />
-              <div className="mt-3 space-y-3">
-                <ImageUploader
-                  kind="media"
-                  label="Upload image, PDF or video"
-                  onUploaded={(url) => {
-                    set("gallery", [...values.gallery, url]);
-                    push("File added to the gallery — save to publish it");
-                  }}
-                />
-                {values.gallery.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {values.gallery.map((url) => (
-                      <div key={url} className="group relative h-16 w-16 overflow-hidden rounded-lg border border-line bg-bone-2">
-                        {mediaKind(url) === "image" || mediaKind(url) === "youtube" ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={displayImage(url)} alt="Gallery" className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="flex h-full w-full items-center justify-center text-[10px] font-bold uppercase text-ink/60">
-                            {mediaKind(url) === "video" ? "Video" : "PDF"}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          aria-label="Remove image"
-                          onClick={() => set("gallery", values.gallery.filter((item) => item !== url))}
-                          className="absolute inset-0 hidden items-center justify-center bg-ink/60 text-[10px] font-semibold text-white group-hover:flex"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
             </Field>
+            <div className="-mt-2 flex flex-wrap items-center gap-3">
+              <ImageUploader
+                anyFile
+                label="Add gallery file"
+                onUploaded={(url) => {
+                  set("gallery", [...values.gallery, url]);
+                  push("File added to the gallery — save to publish it");
+                }}
+              />
+              <p className="text-xs text-ink/45">
+                JPG · PNG · WebP · SVG · MP4 · MOV · PDF — or paste a YouTube link in the box above to
+                store nothing at all
+              </p>
+            </div>
+            {values.gallery.length ? (
+              <ul className="mt-1 space-y-1.5">
+                {values.gallery.map((item, index) => (
+                  <li
+                    key={`${item}-${index}`}
+                    className="flex items-center gap-3 rounded-xl border border-line bg-bone/40 px-3 py-2"
+                  >
+                    <Icon name="file" className="h-4 w-4 shrink-0 text-ink/40" />
+                    <span className="min-w-0 flex-1 truncate text-xs text-ink/70">{item}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        set(
+                          "gallery",
+                          values.gallery.filter((_, position) => position !== index),
+                        )
+                      }
+                      className="shrink-0 text-xs font-medium text-ink/45 underline underline-offset-4 hover:text-crimson"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <Field label="Credits" hint="One credit per line.">
               <Textarea
                 rows={5}
@@ -355,7 +381,7 @@ export function ProjectForm({
           <div className="mt-3 aspect-[4/5] overflow-hidden rounded-xl bg-bone-2">
             {values.coverImage ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={displayImage(values.coverImage)} alt="Cover preview" className="h-full w-full object-cover" />
+              <img src={values.coverImage} alt="Cover preview" className="h-full w-full object-cover" />
             ) : (
               <Artwork
                 seed={preview.title}
