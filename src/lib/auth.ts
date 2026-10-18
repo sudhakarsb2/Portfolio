@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { db } from "@/db";
 import { sessions, users } from "@/db/schema";
 
-export const SESSION_COOKIE = "solano_session";
+export const SESSION_COOKIE = "sb_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
 
 export function hashPassword(password: string): string {

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { WorkExplorer } from "@/components/site/work-explorer";
 import { Reveal } from "@/components/ui/reveal";
-import { getCategories, getPublishedProjects, getTags } from "@/lib/data";
+import { getCategories, getPublishedProjects, getSettings, getTags } from "@/lib/data";
+import { splitHeadline } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Selected Work",
@@ -12,11 +13,13 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function WorkPage() {
-  const [projects, categories, tags] = await Promise.all([
+  const [projects, categories, tags, settings] = await Promise.all([
     getPublishedProjects(),
     getCategories(),
     getTags(),
+    getSettings(),
   ]);
+  const headline = splitHeadline(settings.workHeadline, "Every channel.", "One standard.");
 
   return (
     <div>
@@ -27,14 +30,14 @@ export default async function WorkPage() {
           <Reveal>
             <p className="micro text-white/40">The full portfolio</p>
             <h1 className="mt-6 max-w-4xl text-[clamp(2.8rem,8vw,6.5rem)] font-semibold leading-[0.95] tracking-[-0.05em] text-white">
-              Every channel.{" "}
+              {headline.plain}{" "}
               <span className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
-                One standard.
+                {headline.highlight}
               </span>
             </h1>
             <p className="mt-7 max-w-xl text-[17px] leading-relaxed text-white/55">
-              {projects.length} projects across brand rollouts, out-of-home, point of sale, packaging,
-              digital and print — filter by discipline or tag to find what you need.
+              {settings.workIntro ||
+                `${projects.length} projects across brand rollouts, out-of-home, point of sale, packaging, digital and print — filter by discipline or tag to find what you need.`}
             </p>
           </Reveal>
         </div>

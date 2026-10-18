@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const SESSION_COOKIE = "solano_session";
+const SESSION_COOKIE = "sb_session";
 
 /**
  * First line of defence for the studio area: a request without a session cookie

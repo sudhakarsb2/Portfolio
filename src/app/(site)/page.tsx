@@ -8,7 +8,9 @@ import { Spotlight } from "@/components/site/spotlight";
 import { WordCycler } from "@/components/site/word-cycler";
 import { Icon, type IconName } from "@/components/ui/icons";
 import { Counter, Reveal } from "@/components/ui/reveal";
+import { flattenSkills } from "@/lib/utils";
 import {
+  getCategories,
   getExperiences,
   getPublishedProjects,
   getServices,
@@ -35,25 +37,28 @@ const list = (value?: string) =>
     .filter(Boolean);
 
 export default async function HomePage() {
-  const [projects, services, testimonials, experiences, settings] = await Promise.all([
+  const [projects, services, testimonials, experiences, settings, categories] = await Promise.all([
     getPublishedProjects(),
     getServices(),
     getTestimonials(),
     getExperiences(),
     getSettings(),
+    getCategories(),
   ]);
 
   const name = settings.designerName ?? "Sudhakar Bhambade";
-  const role = settings.roleTitle ?? "Graphic Designer / Production Specialist";
+  const role = settings.roleTitle ?? "Graphic Designer / Identity & Production Specialist";
   const clients = list(settings.clients);
-  const skills = list(settings.skills);
+  const skills = flattenSkills(settings.skills);
+  const heroWords = list(settings.heroWords);
+  const cycleWords = heroWords.length ? heroWords : ["billboard.", "shelf.", "pack.", "screen."];
   const shown = projects.slice(0, 5);
   const locked = projects.slice(5);
 
   const stats: Array<{ label: string; value: number; suffix: string }> = [
     { label: "Years in design & production", value: Number(settings.yearsExperience ?? 18), suffix: "+" },
     { label: "Years at Leo Burnett MEA", value: Number(settings.agencyYears ?? 8), suffix: "+" },
-    { label: "Global brands produced for", value: Number(settings.brandsCount ?? 15), suffix: "+" },
+    { label: "Global brands produced for", value: Number(settings.brandsCount ?? 20), suffix: "+" },
     { label: "Platforms, one standard", value: Number(settings.channelsCount ?? 4), suffix: "" },
   ];
 
@@ -94,7 +99,7 @@ export default async function HomePage() {
 
             <Reveal delay={80}>
               <p className="mt-8 text-lg font-medium text-white/60">
-                {name} <span className="text-white/25">/</span> Production Artist
+                {name} <span className="text-white/25">/</span> Visual Identity &amp; Production
               </p>
             </Reveal>
 
@@ -105,7 +110,7 @@ export default async function HomePage() {
                 on every
                 <br />
                 <WordCycler
-                  words={["billboard.", "shelf.", "pack.", "screen."]}
+                  words={cycleWords}
                   className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text pr-2 text-transparent"
                 />
               </h1>
@@ -119,7 +124,7 @@ export default async function HomePage() {
 
             <Reveal delay={340}>
               <div className="mt-11 flex flex-wrap items-center gap-x-5 gap-y-10">
-                <HoldButton href="/work" />
+                <HoldButton href="/work" label={settings.holdLabel || "Hold to open the full portfolio"} />
                 <Link
                   href="/contact"
                   className="inline-flex h-14 items-center gap-2 rounded-full border border-white/20 px-7 text-[13px] font-semibold text-white transition-all hover:border-white hover:bg-white/10"
@@ -131,7 +136,7 @@ export default async function HomePage() {
           </div>
 
           <Reveal delay={200}>
-            <HeroPortrait src={settings.profilePhoto} name={name} role={role} />
+            <HeroPortrait src={settings.profilePhoto || "/images/profile.jpg"} name={name} role={role} />
           </Reveal>
         </div>
 
@@ -175,12 +180,19 @@ export default async function HomePage() {
             </span>
           </h2>
           <p className="mx-auto mt-6 max-w-xl text-[17px] leading-relaxed text-white/55">
-            Watch a single approved key visual get produced for out-of-home, point of sale, packaging and
-            digital — each one built to spec and preflighted before it leaves the studio.
+            One key visual, carried across out-of-home, point of sale, packaging and digital —
+            without losing the idea along the way.
           </p>
         </Reveal>
         <Reveal delay={120} className="mt-14">
-          <RolloutStage />
+          <RolloutStage
+            categories={categories.map((category) => ({
+              id: category.id,
+              name: category.name,
+              description: category.description,
+              color: category.color,
+            }))}
+          />
         </Reveal>
       </section>
 
@@ -245,7 +257,7 @@ export default async function HomePage() {
                   that started it all.
                 </p>
                 <div className="mt-8 pb-6">
-                  <HoldButton href="/work" label="Hold to unlock the full portfolio" />
+                  <HoldButton href="/work" label={settings.holdLabelArchive || "Hold to unlock the full portfolio"} />
                 </div>
               </div>
             </div>
@@ -276,8 +288,7 @@ export default async function HomePage() {
           <Reveal className="max-w-3xl">
             <p className="micro text-white/40">What I produce</p>
             <h2 className="mt-5 text-[clamp(2.4rem,6vw,4.5rem)] font-semibold leading-[0.98] tracking-[-0.045em] text-white">
-              Built to spec.{" "}
-              <span className="text-white/40">Delivered clean.</span>
+              Creative eye. <span className="text-white/40">Production hand.</span>
             </h2>
           </Reveal>
 
@@ -323,7 +334,7 @@ export default async function HomePage() {
           <Reveal>
             <p className="micro text-white/40">Career</p>
             <h2 className="mt-5 text-[clamp(2.4rem,5.5vw,4rem)] font-semibold leading-[0.98] tracking-[-0.045em] text-white">
-              Eighteen years from the press floor to global rollouts
+              From first sketch to final press run
             </h2>
             <div className="mt-8 flex flex-wrap gap-2">
               {skills.slice(0, 9).map((skill) => (
@@ -339,7 +350,7 @@ export default async function HomePage() {
               href="/about"
               className="group mt-10 inline-flex items-center gap-2.5 text-sm font-semibold text-white transition-colors hover:text-vermilion"
             >
-              Full experience & education
+              Full experience &amp; education
               <Icon name="chevron-right" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </Reveal>
@@ -398,44 +409,6 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      {/* ───────── CONNECT ───────── */}
-      <section className="shell py-28 md:py-32">
-        <Reveal>
-          <div className="relative overflow-hidden rounded-[40px] border border-white/10 bg-gradient-to-br from-[#1a1230] via-[#0d0d12] to-[#2a130c] px-8 py-20 text-center md:px-16">
-            <div className="absolute -left-16 -top-16 h-72 w-72 rounded-full bg-azure/25 blur-[110px] animate-aurora" />
-            <div className="absolute -bottom-20 -right-10 h-72 w-72 rounded-full bg-vermilion/25 blur-[110px] animate-aurora-2" />
-            <div className="relative">
-              <p className="micro text-white/55">Let&apos;s connect</p>
-              <h2 className="mx-auto mt-6 max-w-3xl text-[clamp(2.2rem,6vw,4.5rem)] font-semibold leading-[0.97] tracking-[-0.045em] text-white">
-                Need a brand guardian who ships clean files?
-              </h2>
-              <p className="mx-auto mt-6 max-w-xl text-[16px] leading-relaxed text-white/60">
-                Say hello by email or find me on LinkedIn — {settings.responseTime?.toLowerCase() ?? "replies within one working day"}.
-              </p>
-              <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-                <Link
-                  href="/contact"
-                  className="group inline-flex h-13 items-center gap-2.5 rounded-full bg-white px-8 text-[13px] font-semibold text-black transition-all hover:bg-vermilion hover:text-white"
-                >
-                  Start a conversation
-                  <Icon name="arrow-up-right" className="h-4 w-4 transition-transform group-hover:rotate-45" />
-                </Link>
-                {settings.linkedin ? (
-                  <a
-                    href={settings.linkedin}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-13 items-center gap-2.5 rounded-full border border-white/25 px-8 text-[13px] font-semibold text-white transition-all hover:border-white hover:bg-white/10"
-                  >
-                    <Icon name="linkedin" className="h-4 w-4" />
-                    View LinkedIn
-                  </a>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </Reveal>
-      </section>
     </>
   );
 }

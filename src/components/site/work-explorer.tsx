@@ -55,7 +55,25 @@ export function WorkExplorer({
     setTag(null);
   };
 
-  const chip = (active: boolean) =>
+  const hiddenFilters = new Set([
+  "arabic",
+  "cmyk",
+  "die-line",
+  "die-lines",
+  "figma to print",
+  "figma to indesign",
+  "large format",
+  "pantone",
+  "preflight",
+  "production",
+  "qsr",
+  "retail",
+]);
+
+const visibleCategories = categories.filter((item) => !hiddenFilters.has(item.name.toLowerCase()));
+const visibleTags = tags.filter((item) => !hiddenFilters.has(item.name.toLowerCase()));
+
+const chip = (active: boolean) =>
     cn(
       "rounded-full border px-4 py-2 text-xs font-medium transition-all duration-300",
       active
@@ -105,20 +123,20 @@ export function WorkExplorer({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="scroll-x mt-4 flex items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
           <button
             type="button"
             onClick={() => setCategory(null)}
-            className={chip(category === null)}
+            className={cn(chip(category === null), "shrink-0")}
           >
             All disciplines
           </button>
-          {categories.map((item) => (
+          {visibleCategories.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setCategory(category === item.id ? null : item.id)}
-              className={chip(category === item.id)}
+              className={cn(chip(category === item.id), "shrink-0")}
             >
               <span
                 className="mr-2 inline-block h-2 w-2 rounded-full align-middle"
@@ -130,16 +148,16 @@ export function WorkExplorer({
           ))}
         </div>
 
-        {tags.length ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="micro mr-1 text-[9px] text-ink/35">Tags</span>
-            {tags.map((item) => (
+        {visibleTags.length ? (
+          <div className="scroll-x mt-3 flex items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
+            <span className="micro mr-1 shrink-0 text-[9px] text-ink/35">Tags</span>
+            {visibleTags.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setTag(tag === item.id ? null : item.id)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-[11px] font-medium transition-all duration-300",
+                  "shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all duration-300",
                   tag === item.id
                     ? "bg-vermilion text-white shadow-glow"
                     : "bg-bone-2 text-ink/55 hover:text-ink",

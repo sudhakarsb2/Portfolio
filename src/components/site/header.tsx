@@ -14,7 +14,7 @@ const links = [
   { href: "/contact", label: "Contact" },
 ];
 
-export function SiteHeader({ linkedin }: { linkedin?: string }) {
+export function SiteHeader({ linkedin, photo }: { linkedin?: string; photo?: string }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -49,7 +49,15 @@ export function SiteHeader({ linkedin }: { linkedin?: string }) {
       )}
     >
       <div className="shell flex h-[68px] items-center justify-between gap-6">
-        <Link href="/" aria-label="Sudhakar Bhambade — home">
+        <Link href="/" aria-label="Sudhakar Bhambade — home" className="flex items-center gap-3">
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={photo}
+              alt="Sudhakar Bhambade"
+              className="h-9 w-9 rounded-full object-cover object-[center_20%]"
+            />
+          ) : null}
           <Logo light />
         </Link>
 

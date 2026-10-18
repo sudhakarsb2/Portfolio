@@ -1,4 +1,4 @@
-import { count, eq } from "drizzle-orm";
+import { and, count, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categories,
@@ -16,33 +16,32 @@ import {
 import { hashPassword } from "@/lib/auth";
 import { slugify } from "@/lib/utils";
 
+/** The single account allowed to sign in. */
+const OWNER_EMAIL = "sudhakar.bhambade2@gmail.com";
+/** Legacy spellings that may exist in older databases. */
+const LEGACY_OWNER_EMAILS = ["sudhakar.bhambde2@gmail.com"];
+const OWNER_PASSWORD = "Portfolio#123";
+/** Bump this to re-apply the single-owner account migration once. */
+const AUTH_VERSION = "single-owner-v2";
+
 /** Bump this to replace the demo content on every existing database once. */
-const SEED_VERSION = "sudhakar-2026-v1";
+const SEED_VERSION = "sudhakar-2026-v2";
 
 const categorySeed = [
   { name: "Brand Rollouts", slug: "brand-rollouts", color: "#ff4a1c", description: "Approved ideas, produced across every channel without drift.", sortOrder: 1 },
   { name: "Out of Home", slug: "out-of-home", color: "#3ba9ff", description: "Billboards, unipoles, bus shelters and mall media — built to scale.", sortOrder: 2 },
   { name: "Point of Sale", slug: "point-of-sale", color: "#d7f24b", description: "POSM and in-store communication that survives the shop floor.", sortOrder: 3 },
   { name: "Packaging", slug: "packaging", color: "#7a5cff", description: "Die-lines, master templates and press-ready pack artwork.", sortOrder: 4 },
-  { name: "Digital", slug: "digital", color: "#ff9a3c", description: "Resize matrices and platform-ready assets from Figma to final.", sortOrder: 5 },
+  { name: "Digital", slug: "digital", color: "#ff9a3c", description: "File conversion and platform-ready asset sets.", sortOrder: 5 },
   { name: "Print & Editorial", slug: "print-editorial", color: "#e0a100", description: "Magazines, collateral and information design for print.", sortOrder: 6 },
 ];
 
 const tagSeed = [
   "Rollout",
-  "Production",
-  "Preflight",
-  "CMYK",
-  "Pantone",
-  "Die-line",
-  "Arabic",
-  "Figma to Print",
+  "Format Conversion",
   "Master Templates",
-  "Large Format",
-  "Retail",
   "FMCG",
   "Luxury",
-  "QSR",
   "Automotive",
   "Banking",
   "Infographics",
@@ -52,11 +51,11 @@ const tagSeed = [
 
 const serviceSeed = [
   {
-    title: "Brand Rollouts & Guardianship",
+    title: "Brand Rollouts & Creative Guardianship",
     slug: "brand-rollouts",
     description:
-      "A dedicated brand guardian for your campaigns. Every output is checked against identity frameworks and guidelines — across every channel and touchpoint.",
-    deliverables: ["Guideline compliance audits", "Multi-brand font rollouts", "Master template systems", "Managed colour swatches", "Version-controlled asset library"],
+      "A brand guardian for your creative and your files. I analyse designs for concept strength, typography, colour and on-brand impact — then produce every output to guideline across all channels and touchpoints.",
+    deliverables: ["Creative & guideline compliance audits", "Concept, layout & typography reviews", "Multi-brand font rollouts", "Master template systems", "Managed colour swatches"],
     priceFrom: 0,
     accent: "#ff4a1c",
     icon: "aperture",
@@ -66,8 +65,8 @@ const serviceSeed = [
     title: "Packaging Production",
     slug: "packaging-production",
     description:
-      "High-volume packaging produced to exact vendor specifications — from master die-line templates to zero-error press runs.",
-    deliverables: ["Die-line guide library", "Master packaging templates", "CMYK & Pantone colour management", "Bleed & trap setups", "Press-ready Illustrator files"],
+      "Pack layouts reviewed for shelf impact and brand accuracy first, then produced to exact vendor specifications — from master die-line templates to zero-error press runs.",
+    deliverables: ["Die-line guide library", "Master packaging templates", "Shelf-impact creative review", "CMYK & Pantone colour management", "Press-ready Illustrator files"],
     priceFrom: 0,
     accent: "#7a5cff",
     icon: "box",
@@ -77,8 +76,8 @@ const serviceSeed = [
     title: "Out-of-Home Production",
     slug: "out-of-home",
     description:
-      "Billboards, unipoles, bus shelters and mall media. One approved key visual, scaled to every format without losing structure or proportion.",
-    deliverables: ["Format-by-format adaptation", "Large-format file prep", "Safe-zone & bleed checks", "Vendor spec compliance", "Final proof sign-off"],
+      "Billboards, unipoles, bus shelters and mall media. One approved key visual, adapted with a clear legibility hierarchy and scaled to every format without losing structure or proportion.",
+    deliverables: ["Legibility & hierarchy review", "Format-by-format adaptation", "Large-format file prep", "Safe-zone & bleed checks", "Vendor spec compliance"],
     priceFrom: 0,
     accent: "#3ba9ff",
     icon: "compass",
@@ -88,19 +87,19 @@ const serviceSeed = [
     title: "POSM & In-Store",
     slug: "posm-in-store",
     description:
-      "Shelf-talkers, wobblers, floor stands, counter displays and gondola ends — produced for corporate, in-store and retail environments.",
-    deliverables: ["POSM artwork & die-cuts", "Retail format adaptation", "Multi-lingual versions", "Production schedules", "Print vendor handover"],
+      "Shelf-talkers, wobblers, floor stands, counter displays and gondola ends — creative reviewed for shopper behaviour at arm's length, then produced for corporate, in-store and retail environments.",
+    deliverables: ["Creative review for in-store impact", "POSM artwork & die-cuts", "Retail format adaptation", "Multi-lingual versions", "Production schedules"],
     priceFrom: 0,
     accent: "#d7f24b",
     icon: "layers",
     sortOrder: 4,
   },
   {
-    title: "Digital Rollouts",
+    title: "Digital Production & File Conversion",
     slug: "digital-rollouts",
     description:
-      "Figma layouts and visual concepts converted into complete, platform-ready asset sets for every digital placement.",
-    deliverables: ["Resize matrices", "Platform spec compliance", "Figma to production handoff", "Arabic & bilingual adaptation", "Organised delivery packages"],
+      "Different format files — from any source — converted into friendly, editable Illustrator and InDesign masters that are easy to optimise and handle, built for quick turnarounds on rollouts. Then complete, platform-ready asset sets for every digital placement.",
+    deliverables: ["Converting different files to rollout-friendly formats", "Editable, optimised master files", "Resize matrices", "Platform spec compliance", "Bilingual adaptation"],
     priceFrom: 0,
     accent: "#ff9a3c",
     icon: "monitor",
@@ -110,8 +109,8 @@ const serviceSeed = [
     title: "Prepress & Preflight",
     slug: "prepress-preflight",
     description:
-      "Rigorous pre-flight checks so the first press run is the right one: colour, bleed, layers, links, naming and alignment — all verified.",
-    deliverables: ["Pre-flight reports", "Layer & naming standards", "Alignment & margin audits", "File management systems", "Archive & version control"],
+      "Rigorous checks of creative and craft so the first press run is the right one: brand accuracy, colour, bleed, layers, links, naming and alignment — all verified before release.",
+    deliverables: ["Creative QA & brand checks", "Pre-flight reports", "Layer & naming standards", "Alignment & margin audits", "Archive & version control"],
     priceFrom: 0,
     accent: "#e0a100",
     icon: "book",
@@ -165,16 +164,16 @@ const experienceSeed = [
     period: "April 2018 — Present",
     location: "United Arab Emirates",
     description:
-      "Dedicated brand guardian ensuring every creative output adheres to established identity frameworks across every channel. Designer and production artist for high-volume packaging, rollouts for all digital platforms, POSMs and print campaigns for major global accounts — including McDonald's GCC campaigns across corporate, in-store, outdoor (OOH) and packaging collateral. Converts Figma layouts and concepts into press-ready Illustrator and InDesign assets built to exact vendor specifications, with rigorous pre-flight, CMYK and Pantone colour management and bleed setups. Built and manages the die-line library, file-management system and version-control framework; directs multi-brand font rollouts and master packaging templates; manages multi-lingual campaigns.",
+      "Act as a dedicated brand guardian, ensuring all creative outputs strictly adhere to established brand identity frameworks and visual guidelines across every channel and touchpoint.\n\nServe as designer and production artist for high-volume packaging, rollouts for all digital platforms, POSMs and print campaigns for major global accounts. Managed McDonald's GCC campaigns across corporate, in-store, outdoor (OOH) and packaging collateral, alongside high-profile accounts including P&G, Ferrero, Bel Group, Kellogg's, Visa, Emirates NBD, ADCB, Dubai Holding, Richemont Group (Van Cleef & Arpels and Panerai), AGMC Geely, Mercedes-Benz, Home Centre and Philip Morris.\n\nSeamlessly bridge digital design and physical production by converting different format files into friendly, editable Adobe Illustrator and InDesign formats which provide easy optimization and better handling to perform quick turnaround on rollouts.\n\nConduct rigorous pre-flight checks, colour management (CMYK and Pantone swatches), bleed setups and layout checks to ensure zero-error press runs based on provided vendor technical specifications. Built and manage a standardized file management system, die-line guide library and version-control framework — with meticulously structured production files: standardized naming conventions, clean layer organization, precise alignment guides and managed colour swatches so distributed teams always work with active, up-to-date materials.\n\nDirect multi-brand font rollouts, create master packaging templates and audit high-volume collateral sets to ensure strict guideline compliance across diverse print, digital and OOH formats — and manage complex multi-lingual campaigns while maintaining structural integrity, margins and brand proportion rules.",
     sortOrder: 1,
   },
   {
-    role: "Analyst — Graphic Design",
+    role: "Visual Identity Designer (Graphic Design Analyst)",
     company: "BlackRock",
     period: "July 2016 — March 2018",
     location: "",
     description:
-      "Summarised complicated information into simplified visualisations, and designed information graphics and interactive presentations for print and digital. Recommended reusable deliverable formats, coached the in-house team on data-visualisation practice and ensured designs were implemented correctly in their final form on time.",
+      "Worked as a visual identity designer: summarized complicated information into simplified visualizations through group facilitation with key stakeholders; developed and designed information graphics and interactive presentations of complex ideas for both print and digital platforms; recommended infographic deliverables and formats so they could be re-used across a variety of marketing materials and channels; helped the in-house team on best practices and methods in data visualization and infographics; comprehended complex concepts and expressed them clearly with scribbles; and conceptualized ideas to ensure the design was implemented correctly in its final form, on time.",
     sortOrder: 2,
   },
   {
@@ -183,7 +182,7 @@ const experienceSeed = [
     period: "March 2015 — April 2016",
     location: "Mumbai Metropolitan Region",
     description:
-      "Worked on the Leo Burnett Dubai account — brand-standards compliance, campaign ideas across print, outdoor and digital, and Arabic versions of approved layouts. Produced collateral, newspaper/magazine and OOH ads, and sales-promotion material (POSM, FMOT) for P&G, Bel Group, GMC, du, Ooredoo, McDonald's and Kellogg's.",
+      "Worked for our client Leo Burnett Dubai. Ensured compliance with proper execution of brand standards by developing deliverables within approved branding guidelines; ensured visibility of a campaign idea across print, outdoor and digital advertising; and created Arabic versions of designs after initial layouts were developed by the creative team. Worked on marketing collateral, newspaper and magazine ads, OOH ads and sales promotion material (POSM, FMOT) for P&G, Bel Group, GMC, du, Ooredoo, McDonald's, Kellogg's and others.",
     sortOrder: 3,
   },
   {
@@ -192,7 +191,7 @@ const experienceSeed = [
     period: "October 2012 — February 2015",
     location: "Mumbai Metropolitan Region",
     description:
-      "Designed lifestyle, fashion and business magazines — composition and pagination to project specifications — including luxury titles such as Taj Coffee Table, DLF Emporio, The Leela Magazine and The Oberoi Magazine, and in-house titles like Blackbook and Eat Stay Love.",
+      "Designed lifestyle, fashion and business magazines; understood the briefs from the editors; and worked on assignments through pre-printing and pre-publishing steps like composition and pagination according to project specifications. Worked on luxury magazines like Taj Coffee Table, DLF Emporio, The Leela Magazine and The Oberoi Magazine, and on in-house magazines like Blackbook, Eat Stay Love and Made in India.",
     sortOrder: 4,
   },
   {
@@ -201,7 +200,7 @@ const experienceSeed = [
     period: "November 2010 — October 2012",
     location: "Mumbai Metropolitan Region",
     description:
-      "Analysed storyboards, coordinated with instructional designers and illustrators, and produced accurate, high-quality, compressed assets and templates against project standards.",
+      "Analysed storyboards and presented them in the most effective way to enhance learning. Coordinated with the instructional designers team on content production, understood requirements and created assets to meet them according to storyboards, and coordinated with the illustration development team for precise enhancement. Identified and placed all visual elements including illustrations and font styles to produce effective templates; reviewed systems, process orientation and specifications according to project standards; and produced accurate, high-quality, compressed files for the final process.",
     sortOrder: 5,
   },
   {
@@ -210,7 +209,7 @@ const experienceSeed = [
     period: "January 2008 — July 2010",
     location: "Mumbai Area, India",
     description:
-      "Electronic prepress and print production: page layouts, plate-making preparation, colour separations and prepress file management for brochures, newsletters, activity books, cartons, calendars, banners and annual reports.",
+      "Extensive, demonstrated experience of print and design with knowledge of electronic prepress. Developed design concepts by evaluating space requirements and type size-style; prepared finished page layouts by writing, editing, keying and copying text, and creating and importing graphics — converting and scanning illustrations and photographs into digital images. Maintained quality by editing layouts for spelling, grammar, punctuation, reproduction, clarity and consistency, adhering to prepress standards; initiated printing production by transmitting files and prepared printing plates by separating colours and operating plate-making systems; and maintained prepress files by filing and retrieving layouts. Made brochures, flyers, newsletters, puzzle books, kids activity books, export books, cartons, calendars, diary layouts, banners, annual reports and more.",
     sortOrder: 6,
   },
 ];
@@ -236,9 +235,9 @@ const projectSeed: ProjectSeed[] = [
     category: "brand-rollouts",
     featured: true,
     order: 1,
-    summary: "One campaign idea, produced across corporate, in-store, outdoor and packaging collateral for the GCC.",
+    summary: "One campaign idea, reviewed for brand impact, then produced across corporate, in-store, outdoor and packaging collateral for the GCC.",
     description:
-      "A single approved creative had to land identically in dozens of formats across the GCC: corporate communication, in-store material, outdoor and packaging collateral. The job was less about invention than discipline — building master files, locking colour and proportion rules, and adapting every layout without letting the idea drift.\n\nEvery asset moved through the same pipeline: structured artwork, pre-flight, vendor-spec checks and a clean hand-off package. The result is a rollout where a tray liner, a window cling and a billboard still read as one campaign.",
+      "A single approved creative had to land identically in dozens of formats across the GCC: corporate communication, in-store material, outdoor and packaging collateral. Before a single artboard was adapted, the creative was analysed for on-brand typography, colour and layout — then produced with the same discipline.\n\nEvery asset moved through the same pipeline: structured artwork, pre-flight, vendor-spec checks and a clean hand-off package. The result is a rollout where a tray liner, a window cling and a billboard still read as one campaign.",
     credits: ["Role — Production artist & brand guardian", "Agency — Leo Burnett MEA", "Scope — Corporate · In-store · OOH · Packaging"],
     tags: ["Rollout", "QSR", "Production", "Master Templates"],
   },
@@ -334,17 +333,17 @@ const projectSeed: ProjectSeed[] = [
     tags: ["FMCG", "Master Templates", "Preflight", "CMYK"],
   },
   {
-    title: "Resize Matrix — Social & Display",
+    title: "File Conversion & Resize Matrix",
     client: "Retail group",
     year: 2025,
     category: "digital",
     featured: false,
     order: 9,
-    summary: "Figma concepts converted into complete, platform-ready asset sets.",
+    summary: "Different format files converted into friendly, editable masters — then a complete, platform-ready asset set.",
     description:
-      "Approved Figma layouts were translated into a full matrix of digital placements, each respecting platform safe areas, file-weight limits and brand rules. Layout logic was built once and re-used, so updates ripple through every size at once.\n\nAssets were delivered in organised packages — named, versioned and ready for trafficking.",
-    credits: ["Role — Digital production", "Workflow — Figma to final delivery"],
-    tags: ["Figma to Print", "Retail", "Rollout"],
+      "Supplied layouts and masters from any source were converted into friendly, editable Illustrator and InDesign files — easy to optimize and handle — then translated into a full matrix of digital placements, each respecting platform safe areas, file-weight limits and brand rules. Layout logic was built once and re-used, so updates ripple through every size at once.\n\nAssets were delivered in organised packages — named, versioned and ready for trafficking.",
+    credits: ["Role — Digital production & file conversion", "Workflow — Any format to final delivery"],
+    tags: ["Format Conversion", "Retail", "Rollout"],
   },
   {
     title: "Bilingual Arabic Adaptation",
@@ -382,7 +381,7 @@ const projectSeed: ProjectSeed[] = [
     summary: "Complex financial information turned into clear visualisations for print and digital.",
     description:
       "Worked with stakeholders to summarise complicated information into simplified visualisations, presentations and infographics for both print and digital — and set standards so the in-house team could re-use them.\n\nConcepts were sketched first, then built into final formats and delivered on time.",
-    credits: ["Role — Graphic design analyst", "Output — Infographics · Presentations"],
+    credits: ["Role — Visual identity design analyst", "Output — Infographics · Presentations"],
     tags: ["Infographics", "Banking", "Production"],
   },
 ];
@@ -433,18 +432,32 @@ const messageSeed = [
 const settingSeed: Array<{ key: string; value: string; group: string }> = [
   { key: "studioName", value: "Sudhakar Bhambade", group: "general" },
   { key: "designerName", value: "Sudhakar Bhambade", group: "general" },
-  { key: "roleTitle", value: "Graphic Designer / Production Specialist", group: "general" },
+  { key: "roleTitle", value: "Graphic Designer / Identity & Production Specialist", group: "general" },
   { key: "headline", value: "Your brand, on every touchpoint.", group: "general" },
+  {
+    key: "heroWords",
+    value: "billboard., shelf., pack., screen.",
+    group: "general",
+  },
+  { key: "holdLabel", value: "Hold to open the full portfolio", group: "pages" },
+  { key: "holdLabelArchive", value: "Hold to unlock the full portfolio", group: "pages" },
+  { key: "workHeadline", value: "Every channel.|One standard.", group: "pages" },
+  { key: "workIntro", value: "", group: "pages" },
+  { key: "servicesHeadline", value: "Built to spec.|Delivered clean.", group: "pages" },
+  { key: "servicesIntro", value: "", group: "pages" },
+  { key: "aboutHeadline", value: "The person who makes sure it|prints right.", group: "pages" },
+  { key: "contactHeadline", value: "Let’s get your brand|ready.", group: "pages" },
+  { key: "footerHeadline", value: "Got a rollout|to ship?", group: "pages" },
   {
     key: "subheadline",
     value:
-      "Graphic designer and production artist turning approved ideas into flawless, press-ready rollouts — across digital, out-of-home, point of sale and packaging.",
+      "Graphic designer and production artist with a creative eye and a press-room hand — I analyse designs for brand impact, then turn approved ideas into flawless, press-ready rollouts across digital, out-of-home, point of sale and packaging.",
     group: "general",
   },
   {
     key: "about",
     value:
-      "Graphic designer with a demonstrated history of working in advertising and print. Strong business development professional with a post graduate degree in advertising and media from the University of Mumbai and a certificate diploma in applied art from Rachana Sansad, School of Applied Art.\n\nSince 2018 I have worked at Leo Burnett MEA as a dedicated brand guardian and production artist — taking approved creative and producing high-volume packaging, rollouts for every digital platform, POSMs and print campaigns for major global accounts. I bridge digital design and physical production, converting Figma layouts and visual concepts into press-ready Adobe Illustrator and InDesign assets built to exact vendor specifications.",
+      "Graphic designer with a demonstrated history of working in advertising and print. Strong business development professional with a post graduate degree in advertising and media from the University of Mumbai and a certificate diploma in applied art from Rachana Sansad, School of Applied Art.\n\nSince 2018 I have worked at Leo Burnett MEA as a dedicated brand guardian, designer and production artist — analysing creative work for concept strength, typography, colour and brand fit, and producing high-volume packaging, rollouts for every digital platform, POSMs and print campaigns for major global accounts. I bridge design and physical production, converting different format files into friendly, editable Adobe Illustrator and InDesign formats that are easy to optimise and handle — built for quick turnarounds on rollouts.",
     group: "general",
   },
   { key: "email", value: "sudhakar.bhambade2@gmail.com", group: "contact" },
@@ -454,18 +467,18 @@ const settingSeed: Array<{ key: string; value: string; group: string }> = [
   { key: "linkedin", value: "https://www.linkedin.com/in/sudhakar-bhambade-596231111", group: "social" },
   { key: "yearsExperience", value: "18", group: "stats" },
   { key: "agencyYears", value: "8", group: "stats" },
-  { key: "brandsCount", value: "15", group: "stats" },
+  { key: "brandsCount", value: "20", group: "stats" },
   { key: "channelsCount", value: "4", group: "stats" },
   {
     key: "clients",
     value:
-      "McDonald's, P&G, Ferrero, Bel Group, Kellogg's, Visa, Emirates NBD, ADCB, Dubai Holding, Richemont, Van Cleef & Arpels, Panerai, AGMC, Mercedes-Benz, Geely, Home Centre, Philip Morris, du, Ooredoo",
+      "McDonald's, P&G, Ferrero, Bel Group, Kellogg's, Visa, Emirates NBD, ADCB, Dubai Holding, Richemont, Van Cleef & Arpels, Panerai, AGMC, GMC, Mercedes-Benz, Geely, Home Centre, Philip Morris, du, Ooredoo",
     group: "general",
   },
   {
     key: "skills",
     value:
-      "Production schedules, Brand guardianship, Press-ready artwork, CMYK & Pantone colour management, Die-line libraries, Pre-flight & bleed setups, Figma to Illustrator / InDesign, File naming & version control, Arabic & bilingual adaptation, Exhibitions, Personal management",
+      "Design & Creative: Visual identity design, Creative analysis, Exhibitions | Production & Print: Press-ready artwork, CMYK & Pantone colour management, Die-line libraries, Pre-flight & bleed setups, Illustrator & InDesign masters, Arabic & bilingual adaptation | Workflow & Management: Production schedules, Brand guardianship, File naming & version control, Personal management",
     group: "general",
   },
   {
@@ -494,11 +507,11 @@ const settingSeed: Array<{ key: string; value: string; group: string }> = [
     value: JSON.stringify([
       {
         title: "Decode",
-        body: "Read the brief, the guidelines, the vendor specs and the schedule — and flag risks before a single artboard is opened.",
+        body: "Read the brief, the guidelines, the vendor specs and the schedule — and analyse the creative for brand fit and concept strength before a single artboard is opened.",
       },
       {
         title: "Build",
-        body: "Master templates and structured files, converting Figma layouts and concepts into Illustrator and InDesign built to spec.",
+        body: "Master templates and structured files, converting different format files into friendly Illustrator and InDesign formats that are easy to optimize and handle — built for quick turnarounds.",
       },
       {
         title: "Preflight",
@@ -523,7 +536,15 @@ async function runSeed(): Promise<void> {
     .limit(1);
   if (current[0]?.value === SEED_VERSION) return;
 
-  // One-time migration: replace any earlier demo content (media uploads are kept).
+  // One-time migration: replace the demo content. Accounts, sessions, uploaded
+  // media and the profile-photo setting are preserved.
+  const photo = await db
+    .select({ value: siteSettings.value })
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "profilePhoto"))
+    .limit(1);
+  const photoValue = photo[0]?.value ?? "";
+
   await db.delete(projectTags);
   await db.delete(projects);
   await db.delete(tags);
@@ -533,29 +554,21 @@ async function runSeed(): Promise<void> {
   await db.delete(experiences);
   await db.delete(messages);
   await db.delete(siteSettings);
-  await db.delete(sessions);
-  await db.delete(users);
 
-  const passwordHash = hashPassword("portfolio2026");
-
-  await db.insert(users).values([
-    {
-      email: "sudhakar.bhambade2@gmail.com",
-      passwordHash,
-      name: "Sudhakar Bhambade",
-      role: "owner",
-      title: "Graphic Designer / Production Specialist",
-      bio: "Production artist producing brand rollouts for digital, out-of-home, point of sale and packaging.",
-    },
-    {
-      email: "editor@portfolio.app",
-      passwordHash,
-      name: "Studio Editor",
-      role: "editor",
-      title: "Content Editor",
-      bio: "Helps keep the portfolio up to date.",
-    },
-  ]);
+  const [{ total }] = await db.select({ total: count() }).from(users);
+  if (total === 0) {
+    const passwordHash = hashPassword(OWNER_PASSWORD);
+    await db.insert(users).values([
+      {
+        email: OWNER_EMAIL,
+        passwordHash,
+        name: "Sudhakar Bhambade",
+        role: "owner",
+        title: "Graphic Designer / Identity & Production Specialist",
+        bio: "Graphic designer and production artist producing brand rollouts for digital, out-of-home, point of sale and packaging.",
+      },
+    ]);
+  }
 
   const insertedCategories = await db.insert(categories).values(categorySeed).returning();
   const insertedTags = await db
@@ -600,6 +613,7 @@ async function runSeed(): Promise<void> {
   await db.insert(messages).values(messageSeed);
   await db.insert(siteSettings).values([
     ...settingSeed,
+    ...(photoValue ? [{ key: "profilePhoto", value: photoValue, group: "general" }] : []),
     { key: "seedVersion", value: SEED_VERSION, group: "system" },
   ]);
 }
@@ -609,12 +623,127 @@ export async function countProjects(): Promise<number> {
   return total;
 }
 
+const removedTagNames = [
+  "Arabic",
+  "CMYK",
+  "Die-line",
+  "Die-lines",
+  "Figma to Print",
+  "Figma to InDesign",
+  "Figma to Indesign",
+  "Large Format",
+  "Pantone",
+  "Preflight",
+  "Production",
+  "production",
+  "QSR",
+  "Retail",
+];
+
+async function ensureCatalog() {
+  const luxury = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.slug, "luxury-magazines"))
+    .limit(1);
+  if (!luxury[0]) {
+    await db.insert(categories).values({
+      name: "Luxury Magazines",
+      slug: "luxury-magazines",
+      description: "Luxury, lifestyle and hospitality magazines.",
+      color: "#f5f5f7",
+      sortOrder: 7,
+    });
+  }
+  await db.delete(tags).where(inArray(tags.name, removedTagNames));
+
+  // Backfill the relocation status for databases seeded before it existed.
+  const relocationRow = await db
+    .select({ id: siteSettings.id })
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "relocation"))
+    .limit(1);
+  if (!relocationRow[0]) {
+    await db
+      .insert(siteSettings)
+      .values({ key: "relocation", value: "Ready for relocation", group: "contact" });
+  } else {
+    await db
+      .update(siteSettings)
+      .set({ value: "Ready for relocation" })
+      .where(and(eq(siteSettings.key, "relocation"), eq(siteSettings.value, "Ready to relocate")));
+  }
+
+  // Upgrade the skills setting to the grouped layout — only if the owner has
+  // not customised it since.
+  const skillsRow = await db
+    .select()
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "skills"))
+    .limit(1);
+  if (skillsRow[0] && skillsRow[0].value === 'Visual identity design, Creative analysis, Production schedules, Brand guardianship, Press-ready artwork, CMYK & Pantone colour management, Die-line libraries, Pre-flight & bleed setups, Illustrator & InDesign masters, File naming & version control, Arabic & bilingual adaptation, Exhibitions, Personal management') {
+    await db
+      .update(siteSettings)
+      .set({ value: 'Design & Creative: Visual identity design, Creative analysis, Exhibitions | Production & Print: Press-ready artwork, CMYK & Pantone colour management, Die-line libraries, Pre-flight & bleed setups, Illustrator & InDesign masters, Arabic & bilingual adaptation | Workflow & Management: Production schedules, Brand guardianship, File naming & version control, Personal management' })
+      .where(eq(siteSettings.id, skillsRow[0].id));
+  }
+}
+
+/**
+ * One-time account migration: exactly one owner account may exist, with the
+ * email and password chosen by the owner. Runs once per AUTH_VERSION, so a
+ * password changed later in the dashboard is never overwritten.
+ */
+async function ensureSingleOwner() {
+  const flag = await db
+    .select()
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "authVersion"))
+    .limit(1);
+  if (flag[0]?.value === AUTH_VERSION) return;
+
+  const passwordHash = hashPassword(OWNER_PASSWORD);
+  const existing = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(inArray(users.email, [OWNER_EMAIL, ...LEGACY_OWNER_EMAILS]))
+    .limit(1);
+
+  if (existing[0]) {
+    await db
+      .update(users)
+      .set({ email: OWNER_EMAIL, passwordHash, role: "owner", name: "Sudhakar Bhambade" })
+      .where(eq(users.id, existing[0].id));
+  } else {
+    await db.insert(users).values({
+      email: OWNER_EMAIL,
+      passwordHash,
+      name: "Sudhakar Bhambade",
+      role: "owner",
+      title: "Graphic Designer / Identity & Production Specialist",
+      bio: "Graphic designer and production artist producing brand rollouts for digital, out-of-home, point of sale and packaging.",
+    });
+  }
+
+  await db.delete(users).where(ne(users.email, OWNER_EMAIL));
+  await db.delete(sessions);
+
+  if (flag[0]) {
+    await db.update(siteSettings).set({ value: AUTH_VERSION }).where(eq(siteSettings.key, "authVersion"));
+  } else {
+    await db.insert(siteSettings).values({ key: "authVersion", value: AUTH_VERSION, group: "system" });
+  }
+}
+
 export function ensureSeeded(): Promise<void> {
   if (!seedPromise) {
-    seedPromise = runSeed().catch((error) => {
-      seedPromise = null;
-      throw error;
-    });
+    seedPromise = runSeed()
+      .then(() => ensureCatalog())
+      .then(() => ensureSingleOwner())
+      .catch((error) => {
+        seedPromise = null;
+        throw error;
+      });
   }
   return seedPromise;
 }

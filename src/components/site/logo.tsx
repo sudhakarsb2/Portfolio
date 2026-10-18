@@ -49,7 +49,7 @@ export function Logo({
               light ? "text-white/45" : "text-ink/45",
             )}
           >
-            Production Artist
+            Graphic Designer
           </span>
         </span>
       ) : null}

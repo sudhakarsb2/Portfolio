@@ -3,6 +3,7 @@ import { ContactForm } from "@/components/site/contact-form";
 import { Icon } from "@/components/ui/icons";
 import { Reveal } from "@/components/ui/reveal";
 import { getSettings } from "@/lib/data";
+import { splitHeadline } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ContactPage() {
   const settings = await getSettings();
+  const headline = splitHeadline(settings.contactHeadline, "Let\u2019s get your brand", "ready.");
 
   return (
     <div className="relative overflow-hidden">
@@ -60,18 +62,27 @@ export default async function ContactPage() {
                     </a>
                   </div>
                 ) : null}
-                <div>
-                  <p className="micro text-[9px] text-white/35">Based in</p>
-                  <p className="mt-2 text-[15px] text-white/75">{settings.location}</p>
-                </div>
               </div>
 
-              <div className="mt-auto flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-acid opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-acid" />
-                </span>
-                <p className="text-sm text-white/75">{settings.availability}</p>
+              <div className="mt-auto">
+                <p className="micro text-[9px] text-white/35">Status</p>
+                <div className="mt-3 flex flex-col gap-2.5">
+                  <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-acid opacity-75" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-acid" />
+                    </span>
+                    <p className="text-sm text-white/75">{settings.availability}</p>
+                  </div>
+                  {settings.relocation ? (
+                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
+                      <span className="flex h-2.5 w-2.5 shrink-0 items-center justify-center">
+                        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-azure" />
+                      </span>
+                      <p className="text-sm text-white/75">{settings.relocation}</p>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </Reveal>

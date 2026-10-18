@@ -5,7 +5,6 @@ import { Suspense } from "react";
 import { Artwork } from "@/components/artwork";
 import { LoginForm } from "@/app/login/login-form";
 import { Logo } from "@/components/site/logo";
-import { OrbitBadge } from "@/components/site/kinetic";
 import { Icon } from "@/components/ui/icons";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -37,9 +36,11 @@ export default async function LoginPage({
         <div className="relative flex h-full flex-col justify-between p-12">
           <Logo light />
           <div>
-            <div className="mb-8 h-28 w-28">
-              <OrbitBadge className="h-full w-full" />
-            </div>
+            <img
+              src="/images/profile.jpg"
+              alt="Sudhakar Bhambade"
+              className="mb-8 h-36 w-28 rounded-2xl object-cover object-[center_18%]"
+            />
             <p className="max-w-md text-[clamp(1.6rem,2.6vw,2.5rem)] font-semibold leading-[1.08] tracking-[-0.03em]">
               The work speaks first. The production behind it has to{" "}
               <span className="animate-gradient bg-gradient-to-r from-vermilion via-acid to-azure bg-clip-text text-transparent">

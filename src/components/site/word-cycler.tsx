@@ -21,7 +21,7 @@ export function WordCycler({
   }, [words, interval]);
 
   return (
-    <span className="relative inline-block overflow-hidden pb-[0.12em] align-bottom">
+    <span className="relative inline-block overflow-hidden pb-[0.24em] -mb-[0.04em] align-bottom">
       <span
         key={index}
         className={className}

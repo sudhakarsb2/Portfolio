@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, type MouseEvent } from "react";
 import { Artwork } from "@/components/artwork";
 import { Icon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
+import { cn, displayImage } from "@/lib/utils";
 
 export type ProjectCardData = {
   id: number;
@@ -72,7 +72,7 @@ export function ProjectCard({
         {project.coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={project.coverImage}
+            src={displayImage(project.coverImage)}
             alt={`${project.title} cover`}
             className="h-full w-full object-cover transition-transform duration-[900ms] ease-out group-hover:scale-110"
           />

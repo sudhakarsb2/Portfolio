@@ -51,7 +51,7 @@ export function ProfilePhoto({
       src={src}
       alt={`Portrait of ${name}`}
       onError={() => setFailed(true)}
-      className={cn("object-cover", className)}
+      className={cn("object-cover object-[center_20%]", className)}
     />
   );
 }

@@ -4,27 +4,25 @@ import { HeroPortrait } from "@/components/site/hero-portrait";
 import { Icon } from "@/components/ui/icons";
 import { Counter, Reveal } from "@/components/ui/reveal";
 import { getExperiences, getSettings, getTestimonials } from "@/lib/data";
+import { parseSkillGroups, splitHeadline } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "About",
   description:
-    "Sudhakar Bhambade — graphic designer and production specialist, brand guardian at Leo Burnett MEA.",
+    "Sudhakar Bhambade — graphic designer, visual identity designer and production specialist, brand guardian at Leo Burnett MEA.",
 };
 
 export const dynamic = "force-dynamic";
 
 type Education = { school: string; program: string; period: string };
 
-const list = (value?: string) =>
-  (value ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
 const tools = [
-  { code: "Ai", name: "Illustrator", color: "#ff9a00" },
   { code: "Id", name: "InDesign", color: "#ff3d7f" },
-  { code: "Fg", name: "Figma", color: "#a259ff" },
+  { code: "Ps", name: "Photoshop", color: "#31a8ff" },
+  { code: "Ai", name: "Illustrator", color: "#ff9a00" },
+  { code: "Pdf", name: "Acrobat Professional", color: "#fa0f00" },
+  { code: "Ms", name: "Microsoft Office", color: "#d83b01" },
+  { code: "Cc", name: "Adobe Creative Cloud", color: "#da1f26" },
 ];
 
 export default async function AboutPage() {
@@ -35,9 +33,10 @@ export default async function AboutPage() {
   ]);
 
   const name = settings.designerName ?? "Sudhakar Bhambade";
-  const role = settings.roleTitle ?? "Graphic Designer / Production Specialist";
+  const role = settings.roleTitle ?? "Graphic Designer / Identity & Production Specialist";
+  const headline = splitHeadline(settings.aboutHeadline, "The person who makes sure it", "prints right.");
   const paragraphs = (settings.about ?? "").split("\n\n").filter(Boolean);
-  const skills = list(settings.skills);
+  const skillGroups = parseSkillGroups(settings.skills);
 
   let education: Education[] = [];
   try {
@@ -49,7 +48,7 @@ export default async function AboutPage() {
   const stats = [
     { label: "Years in design & production", value: Number(settings.yearsExperience ?? 18), suffix: "+" },
     { label: "Years at Leo Burnett MEA", value: Number(settings.agencyYears ?? 8), suffix: "+" },
-    { label: "Global brands", value: Number(settings.brandsCount ?? 15), suffix: "+" },
+    { label: "Global brands", value: Number(settings.brandsCount ?? 20), suffix: "+" },
     { label: "Platforms", value: Number(settings.channelsCount ?? 4), suffix: "" },
   ];
 
@@ -65,7 +64,7 @@ export default async function AboutPage() {
               <h1 className="mt-6 text-[clamp(2.8rem,7.5vw,5.75rem)] font-semibold leading-[0.95] tracking-[-0.05em] text-white">
                 The person who makes sure it{" "}
                 <span className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
-                  prints right.
+                  looks right — and prints right.
                 </span>
               </h1>
             </Reveal>
@@ -100,7 +99,7 @@ export default async function AboutPage() {
           </div>
 
           <Reveal delay={120}>
-            <HeroPortrait src={settings.profilePhoto} name={name} role={role} />
+            <HeroPortrait src={settings.profilePhoto || "/images/profile.jpg"} name={name} role={role} />
           </Reveal>
         </div>
       </section>
@@ -123,14 +122,26 @@ export default async function AboutPage() {
           <Reveal>
             <div className="h-full rounded-[32px] border border-white/10 bg-[#0d0d0f] p-8 md:p-10">
               <p className="micro text-white/40">Skills</p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                {skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="rounded-full border border-white/12 bg-white/5 px-4 py-2 text-[13px] font-medium text-white/80"
-                  >
-                    {skill}
-                  </span>
+              <div className="mt-6 space-y-7">
+                {skillGroups.map((group, groupIndex) => (
+                  <div key={group.title || groupIndex}>
+                    {group.title ? (
+                      <p className="micro mb-3 border-b border-white/10 pb-2.5 text-[9px] text-vermilion">
+                        {group.title}
+                      </p>
+                    ) : null}
+                    <ul className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
+                      {group.items.map((skill) => (
+                        <li key={skill} className="flex items-start gap-2.5 text-[13px] leading-snug text-white/75">
+                          <span
+                            className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-white/30"
+                            aria-hidden="true"
+                          />
+                          {skill}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
               </div>
             </div>
@@ -138,7 +149,7 @@ export default async function AboutPage() {
           <Reveal delay={100}>
             <div className="h-full rounded-[32px] border border-white/10 bg-[#0d0d0f] p-8 md:p-10">
               <p className="micro text-white/40">Daily tools</p>
-              <div className="mt-6 grid grid-cols-3 gap-4">
+              <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {tools.map((tool) => (
                   <div
                     key={tool.name}
@@ -155,8 +166,9 @@ export default async function AboutPage() {
                 ))}
               </div>
               <p className="mt-6 text-sm leading-relaxed text-white/45">
-                Plus pre-flight, colour management and file-system discipline — the unglamorous tools that
-                make press runs go right.
+                Different format files converted into friendly, editable masters — plus pre-flight,
+                colour management and file-system discipline, the unglamorous tools that make press
+                runs go right.
               </p>
             </div>
           </Reveal>
@@ -182,7 +194,16 @@ export default async function AboutPage() {
                       {experience.location ? ` · ${experience.location}` : ""}
                     </p>
                   </div>
-                  <p className="max-w-3xl text-[15px] leading-relaxed text-white/60">{experience.description}</p>
+                  <div className="max-w-3xl space-y-4">
+                    {experience.description
+                      .split("\n\n")
+                      .filter(Boolean)
+                      .map((paragraph) => (
+                        <p key={paragraph.slice(0, 32)} className="text-[15px] leading-relaxed text-white/60">
+                          {paragraph}
+                        </p>
+                      ))}
+                  </div>
                 </li>
               </Reveal>
             ))}

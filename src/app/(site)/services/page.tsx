@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Icon, type IconName } from "@/components/ui/icons";
 import { Reveal } from "@/components/ui/reveal";
 import { getServices, getSettings } from "@/lib/data";
+import { splitHeadline } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "What I Produce",
@@ -27,6 +27,7 @@ type ProcessStep = { title: string; body: string };
 export default async function ServicesPage() {
   const [services, settings] = await Promise.all([getServices(), getSettings()]);
 
+  const headline = splitHeadline(settings.servicesHeadline, "Built to spec.", "Delivered clean.");
   let process: ProcessStep[] = [];
   try {
     process = JSON.parse(settings.process ?? "[]") as ProcessStep[];
@@ -43,13 +44,13 @@ export default async function ServicesPage() {
           <Reveal>
             <p className="micro text-white/40">What I produce</p>
             <h1 className="mt-6 max-w-4xl text-[clamp(2.8rem,8vw,6.5rem)] font-semibold leading-[0.95] tracking-[-0.05em] text-white">
-              Built to spec.{" "}
+              {headline.plain}{" "}
               <span className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
-                Delivered clean.
+                {headline.highlight}
               </span>
             </h1>
             <p className="mt-7 max-w-xl text-[17px] leading-relaxed text-white/55">
-              Six production disciplines, one standard: every file structured, colour-managed and
+              Six disciplines, one standard: creative analysed for brand impact, then every file structured, colour-managed and
               preflighted so the first press run is the right one.
             </p>
           </Reveal>
@@ -119,25 +120,6 @@ export default async function ServicesPage() {
           </section>
         ) : null}
 
-        <Reveal>
-          <section className="mt-28 flex flex-col items-start gap-8 rounded-[36px] border border-white/10 bg-gradient-to-br from-[#1a1230] to-[#2a130c] px-8 py-14 md:flex-row md:items-center md:justify-between md:px-14">
-            <div>
-              <h2 className="text-[clamp(1.8rem,4vw,3rem)] font-semibold leading-tight tracking-[-0.04em] text-white">
-                Not sure what your rollout needs?
-              </h2>
-              <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/60">
-                Send the brief, the guidelines and the vendor specs — I&apos;ll map out the production plan.
-              </p>
-            </div>
-            <Link
-              href="/contact"
-              className="group inline-flex h-12 shrink-0 items-center gap-2 rounded-full bg-white px-6 text-[13px] font-semibold text-black transition-all hover:bg-vermilion hover:text-white"
-            >
-              Ask a question
-              <Icon name="arrow-up-right" className="h-4 w-4 transition-transform group-hover:rotate-45" />
-            </Link>
-          </section>
-        </Reveal>
       </div>
     </div>
   );

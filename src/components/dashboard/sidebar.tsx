@@ -146,13 +146,11 @@ export function Sidebar({
         <div className="relative border-t border-bone/10 p-4">
           <div className="rounded-2xl border border-bone/10 bg-bone/5 p-3">
             <div className="flex items-center gap-3">
-              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-vermilion to-violet text-[13px] font-semibold text-white">
-                {user.name
-                  .split(" ")
-                  .slice(0, 2)
-                  .map((part) => part[0])
-                  .join("")}
-              </span>
+              <img
+                src="/images/profile.jpg"
+                alt={user.name}
+                className="h-9 w-9 shrink-0 rounded-full object-cover object-[center_20%]"
+              />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-semibold text-bone">{user.name}</p>
                 <p className="micro mt-0.5 truncate text-[8px] text-bone/40">

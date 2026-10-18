@@ -3,6 +3,14 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/kit";
 
+const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp";
+const MEDIA_ACCEPT =
+  "image/jpeg,image/png,image/webp,image/gif,image/svg+xml,application/pdf,video/mp4,video/webm,video/quicktime";
+
+/** Images that can safely be downscaled through a canvas. */
+const RESIZABLE = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_RAW_BYTES = 35 * 1024 * 1024;
+
 async function fileToResizedDataUrl(file: File, maxSize: number): Promise<string> {
   const objectUrl = URL.createObjectURL(file);
   try {
@@ -27,14 +35,26 @@ async function fileToResizedDataUrl(file: File, maxSize: number): Promise<string
   }
 }
 
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Could not read that file."));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function ImageUploader({
   onUploaded,
   label = "Upload image",
   maxSize = 1600,
+  kind = "image",
 }: {
-  onUploaded: (url: string) => void;
+  onUploaded: (url: string, mime?: string) => void;
   label?: string;
   maxSize?: number;
+  /** "image" = photos only (resized). "media" = any graphic format, PDF or video. */
+  kind?: "image" | "media";
 }) {
   const input = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
@@ -45,18 +65,26 @@ export function ImageUploader({
     setBusy(true);
     setError("");
     try {
-      const dataUrl = await fileToResizedDataUrl(file, maxSize);
+      let dataUrl: string;
+      if (RESIZABLE.has(file.type)) {
+        dataUrl = await fileToResizedDataUrl(file, maxSize);
+      } else {
+        if (file.size > MAX_RAW_BYTES) {
+          throw new Error("That file is over 35 MB. Please compress it first.");
+        }
+        dataUrl = await fileToDataUrl(file);
+      }
       const response = await fetch("/api/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dataUrl }),
       });
-      const payload = (await response.json()) as { url?: string; error?: string };
+      const payload = (await response.json()) as { url?: string; mime?: string; error?: string };
       if (!response.ok || !payload.url) {
         setError(payload.error ?? "Upload failed. Please try again.");
         return;
       }
-      onUploaded(payload.url);
+      onUploaded(payload.url, payload.mime);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Upload failed. Please try again.");
     } finally {
@@ -70,7 +98,7 @@ export function ImageUploader({
       <input
         ref={input}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={kind === "media" ? MEDIA_ACCEPT : IMAGE_ACCEPT}
         className="hidden"
         onChange={(event) => void onFile(event.target.files?.[0])}
       />
