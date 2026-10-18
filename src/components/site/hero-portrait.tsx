@@ -10,7 +10,7 @@ const chips = [
   { text: "Digital rollouts", className: "-right-2 bottom-[8%] sm:-right-8", delay: "0.6s" },
 ];
 
-/** Tilting profile card with floating discipline badges around the portrait. */
+/** Tilting profile card with floating discipline chips that tie to the craft. */
 export function HeroPortrait({
   src,
   name,

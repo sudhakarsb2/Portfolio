@@ -105,3 +105,77 @@ export function truncate(value: string, length = 120): string {
   if (value.length <= length) return value;
   return `${value.slice(0, length).trimEnd()}…`;
 }
+
+export type MediaKind = "image" | "video" | "pdf" | "youtube";
+
+/** Extracts the video id from any common YouTube URL shape. */
+export function youtubeId(url: string): string | null {
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,15})/,
+  );
+  return match ? match[1] : null;
+}
+
+/** YouTube's own thumbnail for a video id — nothing stored on our side. */
+export function youtubeThumb(id: string): string {
+  return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+}
+
+/** If the URL is a YouTube link, swap it for the video thumbnail; otherwise unchanged. */
+export function displayImage(url: string): string {
+  const id = youtubeId(url);
+  return id ? youtubeThumb(id) : url;
+}
+
+/** Infers how a gallery URL should be rendered. */
+export function mediaKind(url: string): MediaKind {
+  if (youtubeId(url)) return "youtube";
+  const clean = url.split("?")[0].toLowerCase();
+  if (/\.(mp4|webm|mov)$/.test(clean)) return "video";
+  if (/\.pdf$/.test(clean)) return "pdf";
+  return "image";
+}
+
+/**
+ * Splits an editable headline like "Every channel.|One standard." into the
+ * plain part and the highlighted part. Falls back when the setting is empty.
+ */
+export function splitHeadline(
+  value: string | undefined,
+  fallbackPlain: string,
+  fallbackHighlight: string,
+): { plain: string; highlight: string } {
+  const text = (value ?? "").trim();
+  if (!text) return { plain: fallbackPlain, highlight: fallbackHighlight };
+  const [plain, ...rest] = text.split("|");
+  return { plain: plain.trim(), highlight: rest.join("|").trim() };
+}
+
+export type SkillGroup = { title: string; items: string[] };
+
+/**
+ * Parses the editable skills setting. Supports grouped syntax:
+ *   "Design: a, b | Production: c, d"
+ * A plain comma list (no "|" or ":") becomes one untitled group.
+ */
+export function parseSkillGroups(value: string | undefined): SkillGroup[] {
+  const text = (value ?? "").trim();
+  if (!text) return [];
+  return text
+    .split("|")
+    .map((section) => {
+      const colon = section.indexOf(":");
+      const title = colon > -1 ? section.slice(0, colon).trim() : "";
+      const items = (colon > -1 ? section.slice(colon + 1) : section)
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      return { title, items };
+    })
+    .filter((group) => group.items.length > 0);
+}
+
+/** All skills as a flat list, whatever syntax was used. */
+export function flattenSkills(value: string | undefined): string[] {
+  return parseSkillGroups(value).flatMap((group) => group.items);
+}

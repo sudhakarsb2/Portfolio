@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { WorkExplorer } from "@/components/site/work-explorer";
 import { Reveal } from "@/components/ui/reveal";
 import { getCategories, getPublishedProjects, getSettings, getTags } from "@/lib/data";
-import { pageText } from "@/lib/page-content";
+import { splitHeadline } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Selected Work",
@@ -19,6 +19,7 @@ export default async function WorkPage() {
     getTags(),
     getSettings(),
   ]);
+  const headline = splitHeadline(settings.workHeadline, "Every channel.", "One standard.");
 
   return (
     <div>
@@ -27,12 +28,16 @@ export default async function WorkPage() {
         <div className="pointer-events-none absolute -left-20 bottom-0 h-72 w-72 rounded-full bg-vermilion/20 blur-[120px] animate-aurora" />
         <div className="relative shell">
           <Reveal>
-            <p className="micro text-white/40">{pageText(settings, "workEyebrow")}</p>
+            <p className="micro text-white/40">The full portfolio</p>
             <h1 className="mt-6 max-w-4xl text-[clamp(2.8rem,8vw,6.5rem)] font-semibold leading-[0.95] tracking-[-0.05em] text-white">
-              {pageText(settings, "workTitle")}
+              {headline.plain}{" "}
+              <span className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
+                {headline.highlight}
+              </span>
             </h1>
             <p className="mt-7 max-w-xl text-[17px] leading-relaxed text-white/55">
-              {`${projects.length} `}{pageText(settings, "workIntro")}
+              {settings.workIntro ||
+                `${projects.length} projects across brand rollouts, out-of-home, point of sale, packaging, digital and print — filter by discipline or tag to find what you need.`}
             </p>
           </Reveal>
         </div>

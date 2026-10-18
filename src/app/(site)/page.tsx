@@ -8,7 +8,7 @@ import { Spotlight } from "@/components/site/spotlight";
 import { WordCycler } from "@/components/site/word-cycler";
 import { Icon, type IconName } from "@/components/ui/icons";
 import { Counter, Reveal } from "@/components/ui/reveal";
-import { pageText } from "@/lib/page-content";
+import { flattenSkills } from "@/lib/utils";
 import {
   getCategories,
   getExperiences,
@@ -49,7 +49,7 @@ export default async function HomePage() {
   const name = settings.designerName ?? "Sudhakar Bhambade";
   const role = settings.roleTitle ?? "Graphic Designer / Identity & Production Specialist";
   const clients = list(settings.clients);
-  const skills = list(settings.skills);
+  const skills = flattenSkills(settings.skills);
   const heroWords = list(settings.heroWords);
   const cycleWords = heroWords.length ? heroWords : ["billboard.", "shelf.", "pack.", "screen."];
   const shown = projects.slice(0, 5);
@@ -99,15 +99,15 @@ export default async function HomePage() {
 
             <Reveal delay={80}>
               <p className="mt-8 text-lg font-medium text-white/60">
-                {name} <span className="text-white/25">/</span> {pageText(settings, "homeHeroRole")}
+                {name} <span className="text-white/25">/</span> Production Specialist
               </p>
             </Reveal>
 
             <Reveal delay={140}>
               <h1 className="mt-4 text-[clamp(3rem,8.4vw,7.2rem)] font-semibold leading-[0.93] tracking-[-0.05em] text-white">
-                {pageText(settings, "homeHeroLine1")}
+                Your brand,
                 <br />
-                {pageText(settings, "homeHeroLine2")}
+                on every
                 <br />
                 <WordCycler
                   words={cycleWords}
@@ -124,7 +124,7 @@ export default async function HomePage() {
 
             <Reveal delay={340}>
               <div className="mt-11 flex flex-wrap items-center gap-x-5 gap-y-10">
-                <HoldButton href="/work" />
+                <HoldButton href="/work" label={settings.holdLabel || "Hold to open the full portfolio"} />
                 <Link
                   href="/contact"
                   className="inline-flex h-14 items-center gap-2 rounded-full border border-white/20 px-7 text-[13px] font-semibold text-white transition-all hover:border-white hover:bg-white/10"
@@ -172,16 +172,27 @@ export default async function HomePage() {
       {/* ───────── ROLLOUT MACHINE ───────── */}
       <section className="shell py-28 md:py-36">
         <Reveal className="mx-auto max-w-3xl text-center">
-          <p className="micro text-white/40">{pageText(settings, "homeCraftEyebrow")}</p>
+          <p className="micro text-white/40">The craft</p>
           <h2 className="mt-5 text-[clamp(2.4rem,6vw,4.75rem)] font-semibold leading-[0.98] tracking-[-0.045em] text-white">
-                 {pageText(settings, "homeCraftTitle")}
+            One idea.{" "}
+            <span className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
+              Every touchpoint.
+            </span>
           </h2>
           <p className="mx-auto mt-6 max-w-xl text-[17px] leading-relaxed text-white/55">
-            {pageText(settings, "homeCraftBody")}
+            One key visual, carried across out-of-home, point of sale, packaging and digital —
+            without losing the idea along the way.
           </p>
         </Reveal>
         <Reveal delay={120} className="mt-14">
-          <RolloutStage categories={categories} />
+          <RolloutStage
+            categories={categories.map((category) => ({
+              id: category.id,
+              name: category.name,
+              description: category.description,
+              color: category.color,
+            }))}
+          />
         </Reveal>
       </section>
 
@@ -189,9 +200,9 @@ export default async function HomePage() {
       <section className="shell pb-28 md:pb-36">
         <Reveal className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="micro text-white/40">{pageText(settings, "homeWorkEyebrow")}</p>
+            <p className="micro text-white/40">Selected rollouts</p>
             <h2 className="mt-5 text-[clamp(2.4rem,6vw,4.5rem)] font-semibold leading-[0.98] tracking-[-0.045em] text-white">
-              {pageText(settings, "homeWorkTitle")}
+              Recent work
             </h2>
           </div>
           <Link
@@ -246,7 +257,7 @@ export default async function HomePage() {
                   that started it all.
                 </p>
                 <div className="mt-8 pb-6">
-                  <HoldButton href="/work" label="Hold to unlock the full portfolio" />
+                  <HoldButton href="/work" label={settings.holdLabelArchive || "Hold to unlock the full portfolio"} />
                 </div>
               </div>
             </div>
@@ -259,7 +270,7 @@ export default async function HomePage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, index) => (
             <Reveal key={stat.label} delay={index * 90}>
-              <div className="h-full rounded-[28px] border border-white/10 bg-gradient-to-b from-[#141416] to-[#0a0a0b] p-7">
+              <div className="accent-card h-full rounded-[28px] border border-white/10 bg-gradient-to-b from-[#141416] to-[#0a0a0b] p-7">
                 <p className="text-[clamp(3rem,5vw,4.5rem)] font-semibold leading-none tracking-[-0.05em] text-white">
                   <Counter value={stat.value} suffix={stat.suffix} />
                 </p>
@@ -275,9 +286,9 @@ export default async function HomePage() {
         <div className="pointer-events-none absolute left-1/3 top-0 h-96 w-96 rounded-full bg-azure/15 blur-[140px] animate-aurora" />
         <div className="relative shell">
           <Reveal className="max-w-3xl">
-            <p className="micro text-white/40">{pageText(settings, "homeServicesEyebrow")}</p>
+            <p className="micro text-white/40">What I produce</p>
             <h2 className="mt-5 text-[clamp(2.4rem,6vw,4.5rem)] font-semibold leading-[0.98] tracking-[-0.045em] text-white">
-              {pageText(settings, "homeServicesTitle")}
+              Creative eye. <span className="text-white/40">Production hand.</span>
             </h2>
           </Reveal>
 
@@ -286,7 +297,8 @@ export default async function HomePage() {
               <Reveal key={service.id} delay={index * 70} className="h-full">
                 <Link
                   href="/services"
-                  className="group flex h-full flex-col rounded-[28px] border border-white/10 bg-white/[0.03] p-7 transition-all duration-500 hover:-translate-y-1.5 hover:border-white/25 hover:bg-white/[0.06]"
+                  style={{ "--accent": service.accent } as React.CSSProperties}
+                  className="accent-card group flex h-full flex-col rounded-[28px] border border-white/10 bg-white/[0.03] p-7 hover:bg-white/[0.06]"
                 >
                   <div className="flex items-start justify-between">
                     <span
@@ -321,9 +333,9 @@ export default async function HomePage() {
       <section className="shell py-28 md:py-36">
         <div className="grid gap-16 lg:grid-cols-[0.8fr_1.2fr]">
           <Reveal>
-            <p className="micro text-white/40">{pageText(settings, "homeCareerEyebrow")}</p>
+            <p className="micro text-white/40">Career</p>
             <h2 className="mt-5 text-[clamp(2.4rem,5.5vw,4rem)] font-semibold leading-[0.98] tracking-[-0.045em] text-white">
-              {pageText(settings, "homeCareerTitle")}
+              From first sketch to final press run
             </h2>
             <div className="mt-8 flex flex-wrap gap-2">
               {skills.slice(0, 9).map((skill) => (
@@ -369,9 +381,9 @@ export default async function HomePage() {
         <section className="border-y border-white/10 bg-[#050506] py-28 md:py-36">
           <div className="shell">
             <Reveal>
-              <p className="micro text-white/40">{pageText(settings, "homeTestimonialsEyebrow")}</p>
+              <p className="micro text-white/40">Recommendations</p>
               <h2 className="mt-5 max-w-3xl text-[clamp(2.2rem,5vw,3.75rem)] font-semibold leading-[1] tracking-[-0.045em] text-white">
-                {pageText(settings, "homeTestimonialsTitle")}
+                Stories of collaboration and results.
               </h2>
             </Reveal>
           </div>
@@ -379,7 +391,7 @@ export default async function HomePage() {
           <div className="scroll-x mt-14 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-6 md:px-10">
             {testimonials.map((testimonial, index) => (
               <Reveal key={testimonial.id} delay={index * 70} className="w-[85vw] shrink-0 snap-start sm:w-[26rem]">
-                <figure className="flex h-full flex-col rounded-[28px] border border-white/10 bg-gradient-to-b from-[#161618] to-[#0b0b0c] p-8 transition-all duration-500 hover:-translate-y-1.5 hover:border-white/25">
+                <figure className="accent-card flex h-full flex-col rounded-[28px] border border-white/10 bg-gradient-to-b from-[#161618] to-[#0b0b0c] p-8">
                   <Icon name="quote" className="h-6 w-6 text-vermilion" />
                   <blockquote className="mt-6 flex-1 text-xl font-medium leading-snug tracking-tight text-white">
                     &ldquo;{testimonial.quote}&rdquo;
@@ -398,6 +410,6 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-</>
+    </>
   );
 }

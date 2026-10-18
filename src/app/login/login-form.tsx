@@ -41,44 +41,38 @@ export function LoginForm() {
   }
 
   return (
-    <div>
-      <form onSubmit={onSubmit} className="space-y-5">
-        <Field label="Email" required>
-          <Input
-            type="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@email.com"
-            autoComplete="email"
-          />
-        </Field>
-        <Field label="Password" required>
-          <Input
-            type="password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="••••••••"
-            autoComplete="current-password"
-          />
-        </Field>
+    <form onSubmit={onSubmit} className="space-y-5">
+      <Field label="Email" required>
+        <Input
+          type="email"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@email.com"
+          autoComplete="email"
+        />
+      </Field>
+      <Field label="Password" required>
+        <Input
+          type="password"
+          required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="••••••••"
+          autoComplete="current-password"
+        />
+      </Field>
 
-        {error ? (
-          <div className="flex items-start gap-2.5 rounded-2xl border border-crimson/25 bg-[#fff3f3] px-4 py-3 text-sm text-crimson">
-            <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
-            {error}
-          </div>
-        ) : null}
+      {error ? (
+        <div className="flex items-start gap-2.5 rounded-2xl border border-crimson/25 bg-[#fff3f3] px-4 py-3 text-sm text-crimson">
+          <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      ) : null}
 
-        <Button type="submit" loading={loading} className="w-full" size="lg">
-          {loading ? "One moment…" : "Sign in to the studio"}
-        </Button>
-      </form>
-
-      <p className="mt-6 text-center text-[11px] leading-relaxed text-ink/40">
-        This area is for the studio owner only. Accounts are created by invitation.
-      </p>
-    </div>
+      <Button type="submit" loading={loading} className="w-full" size="lg">
+        {loading ? "One moment…" : "Sign in"}
+      </Button>
+    </form>
   );
 }

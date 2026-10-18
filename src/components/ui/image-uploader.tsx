@@ -3,14 +3,32 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/kit";
 
-/** Reads any file as a base64 data URL without touching its contents. */
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(new Error("Could not read that file."));
-    reader.readAsDataURL(file);
-  });
+const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp";
+const MEDIA_ACCEPT =
+  "image/jpeg,image/png,image/webp,image/gif,image/svg+xml,application/pdf,video/mp4,video/webm,video/quicktime";
+
+/** Images that can safely be downscaled through a canvas. */
+const RESIZABLE = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_RAW_BYTES = 35 * 1024 * 1024;
+
+/**
+ * Hosting platforms cap a single request around 4 MB, so anything bigger than
+ * this goes through the chunked endpoint in pieces of CHUNK_SIZE characters.
+ */
+const SINGLE_SHOT_LIMIT = 2_500_000;
+const CHUNK_SIZE = 2_500_000;
+
+/** Reads a response that may not be JSON (proxy error pages, size limits…). */
+async function readPayload(response: Response): Promise<{ url?: string; mime?: string; id?: number; error?: string }> {
+  const text = await response.text();
+  try {
+    return JSON.parse(text) as { url?: string; mime?: string; id?: number; error?: string };
+  } catch {
+    if (response.status === 413 || /entity too large/i.test(text)) {
+      return { error: "That file is too large to send in one go. Please try again — or compress it." };
+    }
+    return { error: `Upload failed (${response.status || "network"}). Please try again.` };
+  }
 }
 
 async function fileToResizedDataUrl(file: File, maxSize: number): Promise<string> {
@@ -37,135 +55,98 @@ async function fileToResizedDataUrl(file: File, maxSize: number): Promise<string
   }
 }
 
-/**
- * Reads a JSON response without throwing when the server replies with plain
- * text — for example a hosting platform's size rejection. Without this the
- * visitor sees a confusing parser message instead of the real reason.
- */
-async function readResponse(response: Response): Promise<{ url?: string; error?: string }> {
-  const text = await response.text();
-  if (!text) return { error: `Upload failed (${response.status}).` };
-  try {
-    return JSON.parse(text) as { url?: string; error?: string };
-  } catch {
-    if (response.status === 413) {
-      return { error: "That file was too large for the server to accept. Please try a smaller file." };
-    }
-    return { error: `Upload failed (${response.status}). Please try again.` };
-  }
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Could not read that file."));
+    reader.readAsDataURL(file);
+  });
 }
 
-const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,image/avif";
-
-const ANY_ACCEPT = [
-  ...IMAGE_ACCEPT.split(","),
-  "image/svg+xml",
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-  "application/pdf",
-].join(",");
-
-/** Base64 characters per request — safely under the ~4.5 MB platform cap. */
-const CHUNK_SIZE = 3_000_000;
-
-/** Anything larger than one request is split into pieces automatically. */
-const SINGLE_REQUEST_LIMIT = 3_000_000;
+async function postJson(url: string, body: unknown) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = await readPayload(response);
+  return { ok: response.ok, payload };
+}
 
 export function ImageUploader({
   onUploaded,
   label = "Upload image",
   maxSize = 1600,
-  anyFile = false,
+  kind = "image",
 }: {
-  onUploaded: (url: string) => void;
+  onUploaded: (url: string, mime?: string) => void;
   label?: string;
   maxSize?: number;
-  /** Allow video, PDF and vector files as well as images. */
-  anyFile?: boolean;
+  /** "image" = photos only (resized). "media" = any graphic format, PDF or video. */
+  kind?: "image" | "media";
 }) {
   const input = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState("");
 
-  function splitDataUrl(dataUrl: string) {
-    const separator = dataUrl.indexOf(";base64,");
-    if (separator === -1) throw new Error("Could not read that file.");
-    return {
-      mime: dataUrl.slice(5, separator).toLowerCase(),
-      payload: dataUrl.slice(separator + 8),
-    };
-  }
+  async function uploadChunked(mime: string, base64: string): Promise<{ url?: string; mime?: string; error?: string }> {
+    const begin = await postJson("/api/upload/chunked", { action: "begin", mime });
+    if (!begin.ok || !begin.payload.id) return { error: begin.payload.error ?? "Upload failed. Please try again." };
+    const id = begin.payload.id;
 
-  async function sendInChunks(mime: string, payload: string) {
-    const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const totalParts = Math.ceil(payload.length / CHUNK_SIZE);
-
-    for (let index = 0; index < totalParts; index += 1) {
-      const part = payload.slice(index * CHUNK_SIZE, (index + 1) * CHUNK_SIZE);
-      const response = await fetch("/api/upload/chunk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uploadId, mime, data: part, partIndex: index, totalParts }),
-      });
-      const result = await readResponse(response);
-      if (!response.ok) {
-        await fetch(`/api/upload/chunk?uploadId=${encodeURIComponent(uploadId)}`, { method: "DELETE" });
-        throw new Error(result.error ?? "Upload failed. Please try again.");
-      }
-      setProgress(Math.round(((index + 1) / totalParts) * 100));
+    const total = Math.ceil(base64.length / CHUNK_SIZE);
+    for (let index = 0; index < total; index += 1) {
+      const chunk = base64.slice(index * CHUNK_SIZE, (index + 1) * CHUNK_SIZE);
+      const append = await postJson("/api/upload/chunked", { action: "append", id, chunk });
+      if (!append.ok) return { error: append.payload.error ?? "Upload failed part-way. Please try again." };
+      setProgress(Math.round(((index + 1) / (total + 1)) * 100));
     }
 
-    const finalise = await fetch("/api/upload/chunk", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uploadId, mime }),
-    });
-    const finished = await readResponse(finalise);
-    if (!finalise.ok || !finished.url) {
-      throw new Error(finished.error ?? "Could not finish the upload. Please try again.");
-    }
-    return finished.url;
+    const finish = await postJson("/api/upload/chunked", { action: "finish", id });
+    if (!finish.ok || !finish.payload.url) return { error: finish.payload.error ?? "Upload failed. Please try again." };
+    return finish.payload;
   }
 
   async function onFile(file: File | undefined) {
     if (!file) return;
     setBusy(true);
-    setProgress(0);
+    setProgress(null);
     setError("");
     try {
-      // Images are downscaled in the browser, so they normally fit in one
-      // request. Everything else is sent as-is and chunked when needed.
-      const dataUrl = anyFile
-        ? await fileToDataUrl(file)
-        : await fileToResizedDataUrl(file, maxSize);
-      const { mime, payload } = splitDataUrl(dataUrl);
-
-      let url: string;
-      if (payload.length <= SINGLE_REQUEST_LIMIT) {
-        setProgress(60);
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dataUrl }),
-        });
-        const result = await readResponse(response);
-        if (!response.ok || !result.url) {
-          throw new Error(result.error ?? "Upload failed. Please try again.");
-        }
-        url = result.url;
-        setProgress(100);
+      let dataUrl: string;
+      if (RESIZABLE.has(file.type)) {
+        dataUrl = await fileToResizedDataUrl(file, maxSize);
       } else {
-        url = await sendInChunks(mime, payload);
+        if (file.size > MAX_RAW_BYTES) {
+          throw new Error("That file is over 35 MB. Please compress it first.");
+        }
+        dataUrl = await fileToDataUrl(file);
       }
 
-      onUploaded(url);
+      const comma = dataUrl.indexOf(",");
+      const mime = (dataUrl.slice(5, dataUrl.indexOf(";")) || file.type).toLowerCase();
+      const base64 = dataUrl.slice(comma + 1);
+
+      let result: { url?: string; mime?: string; error?: string };
+      if (base64.length > SINGLE_SHOT_LIMIT) {
+        result = await uploadChunked(mime, base64);
+      } else {
+        const single = await postJson("/api/upload", { dataUrl });
+        result = single.ok ? single.payload : { error: single.payload.error ?? "Upload failed. Please try again." };
+      }
+
+      if (!result.url) {
+        setError(result.error ?? "Upload failed. Please try again.");
+        return;
+      }
+      onUploaded(result.url, result.mime);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Upload failed. Please try again.");
     } finally {
       setBusy(false);
-      setProgress(0);
+      setProgress(null);
       if (input.current) input.current.value = "";
     }
   }
@@ -175,7 +156,7 @@ export function ImageUploader({
       <input
         ref={input}
         type="file"
-        accept={anyFile ? ANY_ACCEPT : IMAGE_ACCEPT}
+        accept={kind === "media" ? MEDIA_ACCEPT : IMAGE_ACCEPT}
         className="hidden"
         onChange={(event) => void onFile(event.target.files?.[0])}
       />
@@ -187,15 +168,9 @@ export function ImageUploader({
         loading={busy}
         onClick={() => input.current?.click()}
       >
-        {busy
-          ? progress > 0 && progress < 100
-            ? `Uploading ${progress}%`
-            : "Uploading…"
-          : label}
+        {busy ? (progress === null ? "Uploading…" : `Uploading… ${progress}%`) : label}
       </Button>
-      {error ? (
-        <p className="mt-2 max-w-xs text-xs leading-relaxed text-crimson">{error}</p>
-      ) : null}
+      {error ? <p className="mt-2 text-xs text-crimson">{error}</p> : null}
     </div>
   );
 }

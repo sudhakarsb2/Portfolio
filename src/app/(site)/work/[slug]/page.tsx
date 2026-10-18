@@ -4,8 +4,8 @@ import { notFound } from "next/navigation";
 import { Artwork } from "@/components/artwork";
 import { Icon } from "@/components/ui/icons";
 import { Reveal } from "@/components/ui/reveal";
-import { MediaThumb } from "@/components/site/media-thumb";
 import { getAdjacentProjects, getProjectBySlug } from "@/lib/data";
+import { displayImage, mediaKind, youtubeId } from "@/lib/utils";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -102,7 +102,8 @@ export default async function ProjectPage({ params }: Params) {
         <Reveal>
           <div className="aspect-[16/10] overflow-hidden rounded-[36px] border border-white/10 bg-[#101012] shadow-lift">
             {project.coverImage ? (
-              <MediaThumb url={project.coverImage} alt={`${project.title} cover`} playButton={false} />
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={displayImage(project.coverImage)} alt={`${project.title} cover`} className="h-full w-full object-cover" />
             ) : (
               <Artwork
                 seed={project.title}
@@ -118,13 +119,54 @@ export default async function ProjectPage({ params }: Params) {
 
       {project.gallery.length ? (
         <div className="shell mt-6 grid gap-6 sm:grid-cols-2">
-          {project.gallery.map((url) => (
-            <Reveal key={url}>
-              <div className="aspect-[4/3] overflow-hidden rounded-[28px] border border-white/10 bg-[#101012]">
-                <MediaThumb url={url} alt={`${project.title} gallery item`} />
-              </div>
-            </Reveal>
-          ))}
+          {project.gallery.map((url) => {
+            const kind = mediaKind(url);
+            return (
+              <Reveal key={url} className={kind !== "image" ? "sm:col-span-2" : undefined}>
+                {kind === "youtube" ? (
+                  <div className="aspect-video overflow-hidden rounded-[28px] border border-white/10 bg-[#101012]">
+                    <iframe
+                      src={`https://www.youtube-nocookie.com/embed/${youtubeId(url)}`}
+                      title={`${project.title} — video`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      className="h-full w-full"
+                    />
+                  </div>
+                ) : kind === "video" ? (
+                  <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#101012]">
+                    <video src={url} controls playsInline preload="metadata" className="h-auto w-full" />
+                  </div>
+                ) : kind === "pdf" ? (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group flex items-center gap-5 rounded-[28px] border border-white/10 bg-[#101012] p-6 transition-colors hover:border-white/30"
+                  >
+                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-vermilion text-xs font-bold uppercase text-white">
+                      PDF
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold text-white">View document</span>
+                      <span className="mt-1 block text-xs text-white/50">
+                        Opens in a new tab — {project.title}
+                      </span>
+                    </span>
+                    <Icon
+                      name="arrow-up-right"
+                      className="ml-auto h-4 w-4 text-white/40 transition-transform group-hover:rotate-45"
+                    />
+                  </a>
+                ) : (
+                  <div className="aspect-[4/3] overflow-hidden rounded-[28px] border border-white/10 bg-[#101012]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`${project.title} gallery`} className="h-full w-full object-cover" />
+                  </div>
+                )}
+              </Reveal>
+            );
+          })}
         </div>
       ) : null}
 

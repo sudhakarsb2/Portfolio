@@ -183,6 +183,7 @@ export const media = pgTable("media", {
   id: serial("id").primaryKey(),
   mime: text("mime").notNull(),
   data: text("data").notNull(),
+  complete: boolean("complete").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

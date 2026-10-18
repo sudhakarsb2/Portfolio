@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Icon, type IconName } from "@/components/ui/icons";
 import { Reveal } from "@/components/ui/reveal";
 import { getServices, getSettings } from "@/lib/data";
-import { pageText } from "@/lib/page-content";
+import { splitHeadline } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "What I Produce",
@@ -27,6 +27,7 @@ type ProcessStep = { title: string; body: string };
 export default async function ServicesPage() {
   const [services, settings] = await Promise.all([getServices(), getSettings()]);
 
+  const headline = splitHeadline(settings.servicesHeadline, "Built to spec.", "Delivered clean.");
   let process: ProcessStep[] = [];
   try {
     process = JSON.parse(settings.process ?? "[]") as ProcessStep[];
@@ -41,12 +42,16 @@ export default async function ServicesPage() {
         <div className="pointer-events-none absolute -right-20 bottom-0 h-72 w-72 rounded-full bg-azure/20 blur-[120px] animate-aurora-2" />
         <div className="relative shell">
           <Reveal>
-            <p className="micro text-white/40">{pageText(settings, "servicesEyebrow")}</p>
+            <p className="micro text-white/40">What I produce</p>
             <h1 className="mt-6 max-w-4xl text-[clamp(2.8rem,8vw,6.5rem)] font-semibold leading-[0.95] tracking-[-0.05em] text-white">
-              {pageText(settings, "servicesTitle")}
+              {headline.plain}{" "}
+              <span className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
+                {headline.highlight}
+              </span>
             </h1>
             <p className="mt-7 max-w-xl text-[17px] leading-relaxed text-white/55">
-              {pageText(settings, "servicesIntro")}
+              Six disciplines, one standard: creative analysed for brand impact, then every file structured, colour-managed and
+              preflighted so the first press run is the right one.
             </p>
           </Reveal>
         </div>
@@ -56,7 +61,10 @@ export default async function ServicesPage() {
         <div className="grid gap-4 lg:grid-cols-3">
           {services.map((service, index) => (
             <Reveal key={service.id} delay={index * 70} className={index === 0 ? "lg:col-span-2" : undefined}>
-              <article className="group relative h-full overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-b from-[#141416] to-[#09090a] p-8 transition-all duration-500 hover:-translate-y-1.5 hover:border-white/25">
+              <article
+                style={{ "--accent": service.accent } as React.CSSProperties}
+                className="accent-card group relative h-full overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-b from-[#141416] to-[#09090a] p-8"
+              >
                 <span
                   className="absolute inset-x-0 top-0 h-px origin-left scale-x-0 transition-transform duration-700 group-hover:scale-x-100"
                   style={{ backgroundColor: service.accent }}
@@ -102,7 +110,7 @@ export default async function ServicesPage() {
             <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {process.map((step, index) => (
                 <Reveal key={step.title} delay={index * 90} className="h-full">
-                  <div className="group h-full rounded-[28px] border border-white/10 bg-white/[0.03] p-7 transition-all duration-500 hover:-translate-y-1.5 hover:bg-white/[0.06]">
+                  <div className="accent-card group h-full rounded-[28px] border border-white/10 bg-white/[0.03] p-7 hover:bg-white/[0.06]">
                     <span className="text-5xl font-semibold tracking-tight text-white/10 transition-colors duration-500 group-hover:text-vermilion">
                       {String(index + 1).padStart(2, "0")}
                     </span>

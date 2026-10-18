@@ -3,7 +3,7 @@ import { ContactForm } from "@/components/site/contact-form";
 import { Icon } from "@/components/ui/icons";
 import { Reveal } from "@/components/ui/reveal";
 import { getSettings } from "@/lib/data";
-import { pageText } from "@/lib/page-content";
+import { splitHeadline } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ContactPage() {
   const settings = await getSettings();
+  const headline = splitHeadline(settings.contactHeadline, "Let\u2019s get your brand", "ready.");
 
   return (
     <div className="relative overflow-hidden">
@@ -26,10 +27,14 @@ export default async function ContactPage() {
             <div className="flex h-full flex-col rounded-[36px] border border-white/10 bg-gradient-to-b from-[#141416] to-[#09090a] p-8 md:p-10">
               <p className="micro text-white/40">Start a project</p>
               <h1 className="mt-6 text-[clamp(2.2rem,4.8vw,3.75rem)] font-semibold leading-[0.97] tracking-[-0.045em] text-white">
-                {pageText(settings, "contactTitle")}
+                {headline.plain}{" "}
+                <span className="bg-gradient-to-r from-azure via-violet to-vermilion bg-clip-text text-transparent">
+                  {headline.highlight}
+                </span>
               </h1>
               <p className="mt-6 text-[16px] leading-relaxed text-white/55">
-                {pageText(settings, "contactIntro")}
+                Share the brief, the channels and the deadline. I read every message myself and reply
+                with questions, a plan, or an honest &ldquo;that&apos;s not a fit.&rdquo;
               </p>
 
               <div className="mt-10 space-y-7">
@@ -58,6 +63,7 @@ export default async function ContactPage() {
                   </div>
                 ) : null}
               </div>
+
             </div>
           </Reveal>
 

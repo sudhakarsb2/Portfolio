@@ -39,8 +39,7 @@ export type IconName =
   | "aperture"
   | "lock"
   | "linkedin"
-  | "upload"
-  | "file";
+  | "upload";
 
 const paths: Record<IconName, ReactNode> = {
   home: (
@@ -235,12 +234,6 @@ const paths: Record<IconName, ReactNode> = {
     <>
       <rect x="3" y="3" width="18" height="18" rx="3.5" />
       <path d="M8 10.5V17M8 7.5v.01M12 17v-3.5a2.5 2.5 0 0 1 5 0V17M12 10.5V17" />
-    </>
-  ),
-  file: (
-    <>
-      <path d="M14 3v5h5" />
-      <path d="M6 3h8l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
     </>
   ),
   upload: (

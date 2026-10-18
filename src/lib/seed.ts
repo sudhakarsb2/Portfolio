@@ -1,5 +1,4 @@
-import { randomBytes } from "node:crypto";
-import { count, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categories,
@@ -8,6 +7,7 @@ import {
   projectTags,
   projects,
   services,
+  sessions,
   siteSettings,
   tags,
   testimonials,
@@ -15,10 +15,17 @@ import {
 } from "@/db/schema";
 import { hashPassword } from "@/lib/auth";
 import { slugify } from "@/lib/utils";
-import { pageContentSeed } from "@/lib/page-content";
+
+/** The single account allowed to sign in. */
+const OWNER_EMAIL = "sudhakar.bhambade2@gmail.com";
+/** Legacy spellings that may exist in older databases. */
+const LEGACY_OWNER_EMAILS = ["sudhakar.bhambde2@gmail.com"];
+const OWNER_PASSWORD = "Portfolio#123";
+/** Bump this to re-apply the single-owner account migration once. */
+const AUTH_VERSION = "single-owner-v2";
 
 /** Bump this to replace the demo content on every existing database once. */
-const SEED_VERSION = "sudhakar-2026-v3";
+const SEED_VERSION = "sudhakar-2026-v2";
 
 const categorySeed = [
   { name: "Brand Rollouts", slug: "brand-rollouts", color: "#ff4a1c", description: "Approved ideas, produced across every channel without drift.", sortOrder: 1 },
@@ -423,23 +430,6 @@ const messageSeed = [
 ];
 
 const settingSeed: Array<{ key: string; value: string; group: string }> = [
-  { key: "siteUrl", value: "", group: "publish" },
-  { key: "colorVermilion", value: "#ff4a1c", group: "theme" },
-  { key: "colorViolet", value: "#7a5cff", group: "theme" },
-  { key: "colorAzure", value: "#3ba9ff", group: "theme" },
-  { key: "colorAcid", value: "#d7f24b", group: "theme" },
-  {
-    key: "dailyTools",
-    value: [
-      "Id | InDesign | #ff3d7f",
-      "Ps | Photoshop | #31a8ff",
-      "Ai | Illustrator | #ff9a00",
-      "Ac | Acrobat Pro | #ec1c24",
-      "Of | Microsoft Office | #d83b01",
-      "Cc | Adobe Creative Cloud | #ff0000",
-    ].join("\n"),
-    group: "general",
-  },
   { key: "studioName", value: "Sudhakar Bhambade", group: "general" },
   { key: "designerName", value: "Sudhakar Bhambade", group: "general" },
   { key: "roleTitle", value: "Graphic Designer / Identity & Production Specialist", group: "general" },
@@ -449,6 +439,15 @@ const settingSeed: Array<{ key: string; value: string; group: string }> = [
     value: "billboard., shelf., pack., screen.",
     group: "general",
   },
+  { key: "holdLabel", value: "Hold to open the full portfolio", group: "pages" },
+  { key: "holdLabelArchive", value: "Hold to unlock the full portfolio", group: "pages" },
+  { key: "workHeadline", value: "Every channel.|One standard.", group: "pages" },
+  { key: "workIntro", value: "", group: "pages" },
+  { key: "servicesHeadline", value: "Built to spec.|Delivered clean.", group: "pages" },
+  { key: "servicesIntro", value: "", group: "pages" },
+  { key: "aboutHeadline", value: "The person who makes sure it|prints right.", group: "pages" },
+  { key: "contactHeadline", value: "Let’s get your brand|ready.", group: "pages" },
+  { key: "footerHeadline", value: "Got a rollout|to ship?", group: "pages" },
   {
     key: "subheadline",
     value:
@@ -464,7 +463,6 @@ const settingSeed: Array<{ key: string; value: string; group: string }> = [
   { key: "email", value: "sudhakar.bhambade2@gmail.com", group: "contact" },
   { key: "location", value: "United Arab Emirates", group: "contact" },
   { key: "availability", value: "Open to production & rollout projects", group: "contact" },
-  { key: "relocation", value: "Ready to relocate", group: "contact" },
   { key: "responseTime", value: "Replies within one working day", group: "contact" },
   { key: "linkedin", value: "https://www.linkedin.com/in/sudhakar-bhambade-596231111", group: "social" },
   { key: "yearsExperience", value: "18", group: "stats" },
@@ -480,7 +478,7 @@ const settingSeed: Array<{ key: string; value: string; group: string }> = [
   {
     key: "skills",
     value:
-      "Visual identity design, Creative analysis, Production schedules, Brand guardianship, Press-ready artwork, CMYK & Pantone colour management, Die-line libraries, Pre-flight & bleed setups, Illustrator & InDesign masters, File naming & version control, Arabic & bilingual adaptation, Exhibitions, Personal management",
+      "Design & Creative: Visual identity design, Creative analysis, Exhibitions | Production & Print: Press-ready artwork, CMYK & Pantone colour management, Die-line libraries, Pre-flight & bleed setups, Illustrator & InDesign masters, Arabic & bilingual adaptation | Workflow & Management: Production schedules, Brand guardianship, File naming & version control, Personal management",
     group: "general",
   },
   {
@@ -531,43 +529,56 @@ const settingSeed: Array<{ key: string; value: string; group: string }> = [
 let seedPromise: Promise<void> | null = null;
 
 async function runSeed(): Promise<void> {
-  // Seed only when the database is genuinely empty. Everything the studio
-  // owner edits lives here, so a deploy must never overwrite it.
-  const [{ total: existingSettings }] = await db
-    .select({ total: count() })
-    .from(siteSettings);
-  if (existingSettings > 0) {
-    await ensureCatalog();
+  const current = await db
+    .select({ value: siteSettings.value })
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "seedVersion"))
+    .limit(1);
+  if (current[0]?.value === SEED_VERSION) return;
+
+  // Content safety lock: if ANY seed version marker exists, this database is
+  // already in use by the owner. Never wipe or replace their content — just
+  // stamp the new version so additive migrations (ensureCatalog etc.) run.
+  if (current[0]) {
+    await db
+      .update(siteSettings)
+      .set({ value: SEED_VERSION })
+      .where(eq(siteSettings.key, "seedVersion"));
     return;
   }
 
-  const photoValue = "";
+  // Fresh, empty database only: install the starter content once.
+  // Accounts, sessions, uploaded media and the profile photo are preserved.
+  const photo = await db
+    .select({ value: siteSettings.value })
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "profilePhoto"))
+    .limit(1);
+  const photoValue = photo[0]?.value ?? "";
+
+  await db.delete(projectTags);
+  await db.delete(projects);
+  await db.delete(tags);
+  await db.delete(categories);
+  await db.delete(services);
+  await db.delete(testimonials);
+  await db.delete(experiences);
+  await db.delete(messages);
+  await db.delete(siteSettings);
 
   const [{ total }] = await db.select({ total: count() }).from(users);
   if (total === 0) {
-    // Never ship a public password. Read one from the environment, otherwise
-    // generate a strong value and print it to the server logs once.
-    const fromEnv = (process.env.ADMIN_PASSWORD ?? "").trim();
-    const generated = randomBytes(12).toString("base64url");
-    const password = fromEnv || generated;
-    const ownerHash = hashPassword(password);
-
+    const passwordHash = hashPassword(OWNER_PASSWORD);
     await db.insert(users).values([
       {
-        email: "sudhakar.bhambade2@gmail.com",
-        passwordHash: ownerHash,
+        email: OWNER_EMAIL,
+        passwordHash,
         name: "Sudhakar Bhambade",
         role: "owner",
         title: "Graphic Designer / Identity & Production Specialist",
         bio: "Graphic designer and production artist producing brand rollouts for digital, out-of-home, point of sale and packaging.",
       },
     ]);
-
-    if (!fromEnv) {
-      console.log(
-        `\n[studio] First run: sign in at /login with sudhakar.bhambade2@gmail.com and this one-time password:\n[studio]   ${password}\n[studio] Change it in Dashboard > Customize after signing in.\n`,
-      );
-    }
   }
 
   const insertedCategories = await db.insert(categories).values(categorySeed).returning();
@@ -613,7 +624,6 @@ async function runSeed(): Promise<void> {
   await db.insert(messages).values(messageSeed);
   await db.insert(siteSettings).values([
     ...settingSeed,
-    ...pageContentSeed(),
     ...(photoValue ? [{ key: "profilePhoto", value: photoValue, group: "general" }] : []),
     { key: "seedVersion", value: SEED_VERSION, group: "system" },
   ]);
@@ -642,9 +652,6 @@ const removedTagNames = [
 ];
 
 async function ensureCatalog() {
-  // Remove the shared demo login so it can never be used to get in.
-  await db.delete(users).where(eq(users.email, "editor@portfolio.app"));
-
   const luxury = await db
     .select({ id: categories.id })
     .from(categories)
@@ -660,12 +667,104 @@ async function ensureCatalog() {
     });
   }
   await db.delete(tags).where(inArray(tags.name, removedTagNames));
+
+  // Refresh the availability wording for databases still on an earlier default.
+  await db
+    .update(siteSettings)
+    .set({ value: "Open to design & production" })
+    .where(
+      and(
+        eq(siteSettings.key, "availability"),
+        inArray(siteSettings.value, [
+          "Open to identity, rollout and production projects",
+          "Open to production & rollout projects",
+        ]),
+      ),
+    );
+
+  // Backfill the relocation status for databases seeded before it existed.
+  const relocationRow = await db
+    .select({ id: siteSettings.id })
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "relocation"))
+    .limit(1);
+  if (!relocationRow[0]) {
+    await db
+      .insert(siteSettings)
+      .values({ key: "relocation", value: "Ready for relocation", group: "contact" });
+  } else {
+    await db
+      .update(siteSettings)
+      .set({ value: "Ready for relocation" })
+      .where(and(eq(siteSettings.key, "relocation"), eq(siteSettings.value, "Ready to relocate")));
+  }
+
+  // Upgrade the skills setting to the grouped layout — only if the owner has
+  // not customised it since.
+  const skillsRow = await db
+    .select()
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "skills"))
+    .limit(1);
+  if (skillsRow[0] && skillsRow[0].value === 'Visual identity design, Creative analysis, Production schedules, Brand guardianship, Press-ready artwork, CMYK & Pantone colour management, Die-line libraries, Pre-flight & bleed setups, Illustrator & InDesign masters, File naming & version control, Arabic & bilingual adaptation, Exhibitions, Personal management') {
+    await db
+      .update(siteSettings)
+      .set({ value: 'Design & Creative: Visual identity design, Creative analysis, Exhibitions | Production & Print: Press-ready artwork, CMYK & Pantone colour management, Die-line libraries, Pre-flight & bleed setups, Illustrator & InDesign masters, Arabic & bilingual adaptation | Workflow & Management: Production schedules, Brand guardianship, File naming & version control, Personal management' })
+      .where(eq(siteSettings.id, skillsRow[0].id));
+  }
+}
+
+/**
+ * One-time account migration: exactly one owner account may exist, with the
+ * email and password chosen by the owner. Runs once per AUTH_VERSION, so a
+ * password changed later in the dashboard is never overwritten.
+ */
+async function ensureSingleOwner() {
+  const flag = await db
+    .select()
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "authVersion"))
+    .limit(1);
+  if (flag[0]?.value === AUTH_VERSION) return;
+
+  const passwordHash = hashPassword(OWNER_PASSWORD);
+  const existing = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(inArray(users.email, [OWNER_EMAIL, ...LEGACY_OWNER_EMAILS]))
+    .limit(1);
+
+  if (existing[0]) {
+    await db
+      .update(users)
+      .set({ email: OWNER_EMAIL, passwordHash, role: "owner", name: "Sudhakar Bhambade" })
+      .where(eq(users.id, existing[0].id));
+  } else {
+    await db.insert(users).values({
+      email: OWNER_EMAIL,
+      passwordHash,
+      name: "Sudhakar Bhambade",
+      role: "owner",
+      title: "Graphic Designer / Identity & Production Specialist",
+      bio: "Graphic designer and production artist producing brand rollouts for digital, out-of-home, point of sale and packaging.",
+    });
+  }
+
+  await db.delete(users).where(ne(users.email, OWNER_EMAIL));
+  await db.delete(sessions);
+
+  if (flag[0]) {
+    await db.update(siteSettings).set({ value: AUTH_VERSION }).where(eq(siteSettings.key, "authVersion"));
+  } else {
+    await db.insert(siteSettings).values({ key: "authVersion", value: AUTH_VERSION, group: "system" });
+  }
 }
 
 export function ensureSeeded(): Promise<void> {
   if (!seedPromise) {
     seedPromise = runSeed()
       .then(() => ensureCatalog())
+      .then(() => ensureSingleOwner())
       .catch((error) => {
         seedPromise = null;
         throw error;
