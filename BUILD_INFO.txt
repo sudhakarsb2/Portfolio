@@ -1,8 +1,9 @@
 Sudhakar Bhambade — Portfolio
-Build stamp: FINAL-2026-10-18-R2
+Build stamp: FINAL-2026-10-18-R3
 
-If this file is missing from your downloaded folder, you have an old copy.
-This version's upload route inserts: { mime, data } — it never uses "uploadId".
+R3 change: tsconfig.json now only type-checks files inside src/.
+Stale leftover files anywhere else in the repository can no longer
+break the Vercel build.
 
 Repo contents should be exactly:
   src/            (app, components, db, lib, proxy.ts)
